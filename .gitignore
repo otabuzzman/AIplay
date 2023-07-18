@@ -1,3 +1,7 @@
+Package.resolved
 *.exe
 *.pdf
 shaffer.c
+.swiftpm/
+Assets.xcassets/
+
