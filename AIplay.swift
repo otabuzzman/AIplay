@@ -6,7 +6,7 @@ struct ContentView: View {
         VStack {
             AppIcon()
                 .frame(width: /*@START_MENU_TOKEN@*/100/*@END_MENU_TOKEN@*/, height: /*@START_MENU_TOKEN@*/100/*@END_MENU_TOKEN@*/, alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/)
-            MNISTDataset()
+            MNIST()
         } 
     }
 }
@@ -23,6 +23,39 @@ struct AIplay: App {
                 ContentView()
             }
         }
+    }
+}
+
+struct MNIST: View {
+    @StateObject var mnist = MNISTViewModel()
+    @State private var folderPickerShow = getAppFolder() == nil
+    
+    var body: some View {
+        Circle().foregroundColor(
+            mnist.dataset.count == 0 ? .gray :
+                mnist.dataset.count == 4 ? .green :
+                    .yellow
+        )
+        .task {
+            mnist.load(from: getAppFolder())
+        }
+        .sheet (isPresented: $folderPickerShow) {
+            FolderPicker { result in
+                switch result {
+                case .success(let folder):
+                    folder.accessSecurityScopedResource { folder in
+                        setAppFolder(url: folder)
+                    }
+                    mnist.load(from: getAppFolder())
+                default: // .failure(let error)
+                    break
+                }
+            }
+        }
+        Text("\(mnist.dataset[.images(.train)] == nil ? 0 : (mnist.dataset[.images(.train)] as! [[Float]]).count)")
+        Text("\(mnist.dataset[.images(.test)] == nil ? 0 : (mnist.dataset[.images(.test)] as! [[Float]]).count)")
+        Text("\(mnist.dataset[.labels(.train)] == nil ? 0 : (mnist.dataset[.labels(.train)] as! [UInt8]).count)")
+        Text("\(mnist.dataset[.labels(.test)] == nil ? 0 : (mnist.dataset[.labels(.test)] as! [UInt8]).count)")
     }
 }
 

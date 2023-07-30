@@ -30,7 +30,7 @@ let package = Package(
                 .landscapeLeft,
                 .portraitUpsideDown(.when(deviceFamilies: [.pad]))
             ],
-            additionalInfoPlistContentFilePath: "Info.plist"
+            additionalInfoPlistContentFilePath: "Resources/HttpInfo.plist"
         )
     ],
     dependencies: [
@@ -45,6 +45,9 @@ let package = Package(
                 .product(name: "DataCompression", package: "DataCompression")
             ],
             path: ".",
+            resources: [
+                .process("Resources")
+            ],
             swiftSettings: [
                 .enableUpcomingFeature("BareSlashRegexLiterals"),
                 .define("TESTING_ENABLED", .when(configuration: .debug))

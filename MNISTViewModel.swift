@@ -3,7 +3,7 @@ import Foundation
 
 import DataCompression
 
-enum MNISTDatasetItem: Hashable {
+enum MNISTItem: Hashable {
     enum Subset: String {
         case train = "train"
         case test = "t10k"
@@ -22,93 +22,79 @@ enum MNISTDatasetItem: Hashable {
     }
 }
 
-enum MNISTDatasetError: Error {
+enum MNISTError: Error {
     case gunzip
     case response(code: Int)
 }
 
-struct MNISTDataset: View {
-    private var state = NSLock()
-    
-    @State private var folderPickerShow = getAppFolder() == nil
-    @State private(set) var files: [MNISTDatasetItem : Any] = [:]
-    
-    var body: some View {
-        Circle().foregroundColor(
-            files.count == 0 ? .gray :
-                files.count == 4 ? .green :
-                    .yellow
-        )
-        .task {
-            load(from: getAppFolder())
+extension MNISTError {
+    var description: String {
+        switch self {
+        case .gunzip:
+            return "gunzip Data failed"
+        case .response(let code):
+            return "HTTP response returned \(code)"
         }
-        .sheet (isPresented: $folderPickerShow) {
-            FolderPicker { result in
-                switch result {
-                case .success(let folder):
-                    folder.accessSecurityScopedResource { folder in
-                        setAppFolder(url: folder)
-                    }
-                    load(from: getAppFolder())
-                default: // .failure(let error)
-                    break
-                }
-            }
-        }
-        Text("\(files[.images(.train)] == nil ? 0 : (files[.images(.train)] as! [[Float]]).count)")
-        Text("\(files[.images(.test)] == nil ? 0 : (files[.images(.test)] as! [[Float]]).count)")
-        Text("\(files[.labels(.train)] == nil ? 0 : (files[.labels(.train)] as! [UInt8]).count)")
-        Text("\(files[.labels(.test)] == nil ? 0 : (files[.labels(.test)] as! [UInt8]).count)")
     }
 }
 
-extension MNISTDataset {
-    private static let baseURL = "http://yann.lecas!.com/exdb/mnist/"
+class MNISTViewModel: ObservableObject {
+    private var state = NSLock()
     
-    private func load(from folder: URL?, _ completion: ((Error?) -> Void)? = nil) {
+    @Published private(set) var dataset: [MNISTItem : Any] = [:]
+    
+    func load(from folder: URL?, _ completion: ((Error?) -> Void)? = nil) {
         guard
             let folder = folder
         else { return }
-        let items: [MNISTDatasetItem] = [.images(.train), .labels(.train), .images(.test), .labels(.test)]
+        let load = { [self] (item: MNISTItem, itemUrl: URL) -> Void in
+            Task {
+                switch item {
+                case .images:
+                    let images = Self.readImages(from: itemUrl)
+                    synchronize { dataset[item] = images }
+                case .labels:
+                    let labels = Self.readLabels(from: itemUrl)
+                    synchronize { dataset[item] = labels }
+                }
+            }
+        }
+        let baseURL = "http://yann.lecun.com/exdb/mnist/"
+        let items: [MNISTItem] = [
+            .images(.train), .labels(.train),
+            .images(.test), .labels(.test)
+        ]
         for item in items {
             let itemUrl = folder.appending(path: item.name)
-            if !FileManager.default.fileExists(atPath: itemUrl.path) {
-                let itemGzUrl = itemUrl.appendingPathExtension(for: .gzip)
-                if !FileManager.default.fileExists(atPath: itemGzUrl.path) {
-                    let remoteItemUrl = URL(string: Self.baseURL)?
-                        .appending(path: item.name)
-                        .appendingPathExtension(for: .gzip)
-                    Self.download(source: remoteItemUrl!, target: itemGzUrl) { error in
-                        if let error = error {
-                            completion?(error)
-                            return
-                        }
-                        do {
-                            try Self.gunzip(source: itemGzUrl, target: itemUrl)
-                        } catch {
-                            completion?(error)
-                            return
-                        }
+            if FileManager.default.fileExists(atPath: itemUrl.path) {
+                load(item, itemUrl)
+                continue
+            }
+            let itemGzUrl = itemUrl.appendingPathExtension(for: .gzip)
+            if !FileManager.default.fileExists(atPath: itemGzUrl.path) {
+                let remoteItemUrl = URL(string: baseURL)?
+                    .appending(path: item.name)
+                    .appendingPathExtension(for: .gzip)
+                Self.download(source: remoteItemUrl!, target: itemGzUrl) { error in
+                    if let error = error {
+                        completion?(error)
+                        return
                     }
-                } else {
                     do {
                         try Self.gunzip(source: itemGzUrl, target: itemUrl)
+                        load(item, itemUrl)
                     } catch {
                         completion?(error)
                         return
                     }
                 }
-            }
-            switch item {
-            case .images:
-                Task {
-                    let images = Self.readImages(from: itemUrl)
-                    synchronize { files[item] = images }
-                }
-            case .labels:
-                Task {
-                    let labels = Self.readLabels(from: itemUrl)
-                    synchronize { files[item] = labels }
+            } else {
+                do {
+                    try Self.gunzip(source: itemGzUrl, target: itemUrl)
+                    load(item, itemUrl)
+                } catch {
+                    completion?(error)
+                    return
                 }
             }
         }
@@ -118,7 +104,7 @@ extension MNISTDataset {
         let contentGz = try Data(contentsOf: source)
         guard
             let content = contentGz.gunzip()
-        else { throw MNISTDatasetError.gunzip }
+        else { throw MNISTError.gunzip }
         try content.write(to: target, options: .noFileProtection)
     }
     
@@ -132,7 +118,8 @@ extension MNISTDataset {
             if let response = response {
                 let statusCode = (response as! HTTPURLResponse).statusCode
                 if statusCode != 200 {
-                    completion(MNISTDatasetError.response(code: statusCode))
+                    completion(MNISTError.response(code: statusCode))
+                    return
                 }
             }
             guard
@@ -194,7 +181,7 @@ extension MNISTDataset {
     }
     
     // https://stackoverflow.com/a/66228135 (comprehensive refresher on capture lists and thread safety)
-    func synchronize<T>(code: () throws -> T) rethrows -> T {
+    private func synchronize<T>(code: () throws -> T) rethrows -> T {
         state.lock()
         defer { state.unlock() }
         return try code()
