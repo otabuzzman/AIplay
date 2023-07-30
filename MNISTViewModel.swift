@@ -156,9 +156,9 @@ class MNISTViewModel: ObservableObject {
         let imageSize = MemoryLayout<UInt8>.size * Int(numberOfRows * numberOfColumns)
         for _ in 0..<numberOfImages {
             let rawImageData = handle.readData(ofLength: imageSize)
-            var imageData = Array<Float>(repeating: 0, count: imageSize)
+            var imageData = Array<UInt8>(repeating: 0, count: imageSize)
             _ = imageData.withUnsafeMutableBytes { rawImageData.copyBytes(to: $0) }
-            images.append(imageData.map { Float($0) / Float(255) })
+            images.append(imageData.map { Float($0) })
         }
         
         return images
@@ -206,5 +206,22 @@ extension URL {
                 bookmarkDataIsStale: &isStale)
         }
         return securityScopedUrl
+    }
+}
+
+extension Network {
+    mutating func query(for I: [Float]) -> Matrix<Float> {
+        let i = Matrix<Float>(rows: I.count, columns: 1, entries: I)
+            .map { ($0 / 255.0 * 0.99) + 0.01 } // MYONN, p. 151 ff.
+        return query(for: i)
+    }
+    
+    mutating func train(for I: [Float], with T: UInt8) -> Void {
+        let i = Matrix<Float>(rows: I.count, columns: 1, entries: I)
+            .map { ($0 / 255.0 * 0.99) + 0.01 }
+        var t = Matrix<Float>(rows: 10, columns: 1)
+            .map { _ in 0.01 }
+        t[Int(T) - 1, 0] = 0.99
+        return train(for: i, with: t)
     }
 }
