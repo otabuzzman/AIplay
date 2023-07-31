@@ -1,6 +1,4 @@
-import SwiftUI
 import Foundation
-
 import DataCompression
 
 enum MNISTItem: Hashable {
@@ -38,7 +36,7 @@ extension MNISTError {
     }
 }
 
-class MNISTViewModel: ObservableObject {
+class MNIST: ObservableObject {
     private var state = NSLock()
     
     @Published private(set) var dataset: [MNISTItem : Any] = [:]
@@ -139,9 +137,9 @@ class MNISTViewModel: ObservableObject {
         task.resume()
     }
     
-    private static func readImages(from source: URL) -> [[Float]] {
+    private static func readImages(from source: URL) -> [[UInt8]] {
         let handle = try! FileHandle(forReadingFrom: source)
-        var images = [[Float]]()
+        var images = [[UInt8]]()
         
         handle.seek(toFileOffset: 0)
         _ = handle.readData(ofLength: MemoryLayout<UInt32>.size) // magic number
@@ -156,9 +154,8 @@ class MNISTViewModel: ObservableObject {
         let imageSize = MemoryLayout<UInt8>.size * Int(numberOfRows * numberOfColumns)
         for _ in 0..<numberOfImages {
             let rawImageData = handle.readData(ofLength: imageSize)
-            var imageData = Array<UInt8>(repeating: 0, count: imageSize)
-            _ = imageData.withUnsafeMutableBytes { rawImageData.copyBytes(to: $0) }
-            images.append(imageData.map { Float($0) })
+            let imageData = rawImageData.withUnsafeBytes { Array($0.bindMemory(to: UInt8.self)) }
+            images.append(imageData)
         }
         
         return images
@@ -171,11 +168,10 @@ class MNISTViewModel: ObservableObject {
         _ = handle.readData(ofLength: MemoryLayout<UInt32>.size) // magic number
         
         let rawNumberOfItems = handle.readData(ofLength: MemoryLayout<UInt32>.size)
-        let numberOfItems = UInt32(bigEndian: rawNumberOfItems.withUnsafeBytes({ $0.load(as: UInt32.self) }))
+        _ = UInt32(bigEndian: rawNumberOfItems.withUnsafeBytes({ $0.load(as: UInt32.self) }))
 
         let rawLabelsData = handle.readDataToEndOfFile()
-        var labels = Array<UInt8>(repeating: 0, count: Int(numberOfItems))
-        _ = labels.withUnsafeMutableBytes { rawLabelsData.copyBytes(to: $0) }
+        let labels = rawLabelsData.withUnsafeBytes { Array($0.bindMemory(to: UInt8.self)) }
         
         return labels
     }
@@ -206,22 +202,5 @@ extension URL {
                 bookmarkDataIsStale: &isStale)
         }
         return securityScopedUrl
-    }
-}
-
-extension Network {
-    mutating func query(for I: [Float]) -> Matrix<Float> {
-        let i = Matrix<Float>(rows: I.count, columns: 1, entries: I)
-            .map { ($0 / 255.0 * 0.99) + 0.01 } // MYONN, p. 151 ff.
-        return query(for: i)
-    }
-    
-    mutating func train(for I: [Float], with T: UInt8) -> Void {
-        let i = Matrix<Float>(rows: I.count, columns: 1, entries: I)
-            .map { ($0 / 255.0 * 0.99) + 0.01 }
-        var t = Matrix<Float>(rows: 10, columns: 1)
-            .map { _ in 0.01 }
-        t[Int(T) - 1, 0] = 0.99
-        return train(for: i, with: t)
     }
 }
