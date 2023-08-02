@@ -2,14 +2,14 @@ import Foundation
 
 class Network: ObservableObject {
     private var layers: [Layer]
-    private var learningRate: Float
+    private var alpha: Float // learning rate
     
     // each layer's output O
     private var O: [Matrix<Float>]!
     
-    init(_ layers: [Layer], learningRate: Float) {
+    init(_ layers: [Layer], alpha: Float) {
         self.layers = layers
-        self.learningRate = learningRate
+        self.alpha = alpha
     }
     
     func query(for I: Matrix<Float>) -> Matrix<Float> {
@@ -22,10 +22,10 @@ class Network: ObservableObject {
     
     func train(for I: Matrix<Float>, with T: Matrix<Float>) -> Void {
         // network error at output layer O as square of difference T - O
-        var E = (T - query(for: I)).map { error in powf(error, 2.0) }
+        var E = T - query(for: I)
         // back propagate error layer by layer in reverse order
         for layer in (0..<layers.count).reversed() {
-            E = layers[layer].train(for: O[layer], with: E, at: learningRate)
+            E = layers[layer].train(for: O[layer], with: E, alpha)
         }
     }
 }
@@ -46,18 +46,17 @@ struct Layer {
         self.punits = punits
         self.f = f
         
-        let range = 1.0 / powf(Float(inputs), 0.5)
-        W = Matrix<Float>(rows: inputs, columns: punits).map { _ in Float.random(in: -range...range) }
+        W = Matrix<Float>(rows: punits, columns: inputs).map { _ in Float.random(in: -0.5...0.5) }
     }
     
     func query(for I: Matrix<Float>) -> Matrix<Float> {
         return (W • I).map { f($0) }
     }
     
-    mutating func train(for I: Matrix<Float>, with E: Matrix<Float>, at rate: Float) -> Matrix<Float> {
+    mutating func train(for I: Matrix<Float>, with E: Matrix<Float>, _ alpha: Float) -> Matrix<Float> {
         let O = query(for: I)
         let B = W.T • E
-        W = W + rate * ((E * O * (1.0 - O)) • I.T)
+        W = W + alpha * ((E * O * (1.0 - O)) • I.T)
         return B
     }
 }

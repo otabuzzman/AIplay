@@ -41,10 +41,13 @@ class MNIST: ObservableObject {
     
     @Published private(set) var dataset: [MNISTItem : Any] = [:]
     
-    func load(from folder: URL?, _ completion: ((Error?) -> Void)? = nil) {
-        guard
-            let folder = folder
-        else { return }
+    init(in folder: URL?) {
+        if let folder = folder {
+            load(from: folder)
+        }
+    }
+    
+    func load(from folder: URL, _ completion: ((Error?) -> Void)? = nil) {
         let load = { [self] (item: MNISTItem, itemUrl: URL) -> Void in
             Task {
                 switch item {
