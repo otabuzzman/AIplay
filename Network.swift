@@ -1,6 +1,15 @@
+import SwiftUI
 import Foundation
 
-class Network: ObservableObject {
+struct Network: View {
+    @ObservedObject var viewModel: NetworkViewModel
+    
+    var body: some View {
+        EmptyView()
+    }
+}
+
+class NetworkViewModel: ObservableObject {
     private var layers: [Layer]
     private var alpha: Float // learning rate
     

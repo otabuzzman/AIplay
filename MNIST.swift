@@ -1,21 +1,68 @@
+import SwiftUI
 import Foundation
+
 import DataCompression
 
-enum MNISTItem: Hashable {
-    enum Subset: String {
+struct MNIST: View {
+    @ObservedObject var viewModel: MNISTViewModel
+    
+    var body: some View {
+        HStack {
+            VStack {
+                Circle().foregroundColor(viewModel.state[.images(.train)]?.color)
+                Circle().foregroundColor(viewModel.state[.labels(.train)]?.color)
+            }
+            VStack {
+                Circle().foregroundColor(viewModel.state[.images(.test)]?.color)
+                Circle().foregroundColor(viewModel.state[.labels(.test)]?.color)
+            }
+        }
+    }
+}
+
+protocol MNISTEntity { }
+typealias MNISTImage = [UInt8]
+typealias MNISTLabel = UInt8
+extension MNISTImage: MNISTEntity { }
+extension MNISTLabel: MNISTEntity { }
+
+enum MNISTSubset: Hashable {
+    enum Purpose: String {
         case train = "train"
         case test = "t10k"
     }
     
-    case images(_ subset: Subset)
-    case labels(_ subset: Subset)
+    case images(_ purpose: Purpose)
+    case labels(_ purpose: Purpose)
     
     var name: String {
         switch self {
-        case .images(let subset):
-            return subset.rawValue + "-images-idx3-ubyte"
-        case .labels(let subset):
-            return subset.rawValue + "-labels-idx1-ubyte"
+        case .images(let purpose):
+            return purpose.rawValue + "-images-idx3-ubyte"
+        case .labels(let purpose):
+            return purpose.rawValue + "-labels-idx1-ubyte"
+        }
+    }
+    
+    static var all: [MNISTSubset] { [.images(.train), .labels(.train), .images(.test), .labels(.test)] }
+}
+
+enum MNISTState {
+    case missing
+    case loading
+    case loaded
+    case failed(Error)
+    
+    var color: Color {
+        switch self {
+        case .missing:
+            return .gray
+        case .loading:
+            return .yellow
+        case .loaded:
+            return .green
+        case .failed:
+            return .red
         }
     }
 }
@@ -36,65 +83,67 @@ extension MNISTError {
     }
 }
 
-class MNIST: ObservableObject {
-    private var state = NSLock()
+class MNISTViewModel: ObservableObject {
+    private var lock = NSLock()
     
-    @Published private(set) var dataset: [MNISTItem : Any] = [:]
+    @Published private(set) var dataset: [MNISTSubset : [MNISTEntity]] = [:]
+    @Published private(set) var state: [MNISTSubset : MNISTState] = [:]
     
     init(in folder: URL?) {
+        MNISTSubset.all.forEach { state[$0] = .missing }
         if let folder = folder {
             load(from: folder)
         }
     }
     
-    func load(from folder: URL, _ completion: ((Error?) -> Void)? = nil) {
-        let load = { [self] (item: MNISTItem, itemUrl: URL) -> Void in
-            Task {
-                switch item {
+    func load(from folder: URL) {
+        let baseURL = "http://yann.lecun.com/exdb/mnist/"
+        let load = { [self] (subset: MNISTSubset, itemUrl: URL) -> Void in
+            Task { @MainActor in
+                let entity: [MNISTEntity]
+                switch subset {
                 case .images:
-                    let images = Self.readImages(from: itemUrl)
-                    synchronize { dataset[item] = images }
+                    entity = Self.readImages(from: itemUrl)
                 case .labels:
-                    let labels = Self.readLabels(from: itemUrl)
-                    synchronize { dataset[item] = labels }
+                    entity = Self.readLabels(from: itemUrl)
+                }
+                synchronize {
+                    dataset[subset] = entity
+                    state[subset] = .loaded
                 }
             }
         }
-        let baseURL = "http://yann.lecun.com/exdb/mnist/"
-        let items: [MNISTItem] = [
-            .images(.train), .labels(.train),
-            .images(.test), .labels(.test)
-        ]
-        for item in items {
-            let itemUrl = folder.appending(path: item.name)
+        MNISTSubset.all.forEach { subset in
+            synchronize { state[subset] = .loading }
+            let itemUrl = folder.appending(path: subset.name)
             if FileManager.default.fileExists(atPath: itemUrl.path) {
-                load(item, itemUrl)
-                continue
+                load(subset, itemUrl)
+                return
             }
             let itemGzUrl = itemUrl.appendingPathExtension(for: .gzip)
             if !FileManager.default.fileExists(atPath: itemGzUrl.path) {
                 let remoteItemUrl = URL(string: baseURL)?
-                    .appending(path: item.name)
+                    .appending(path: subset.name)
                     .appendingPathExtension(for: .gzip)
-                Self.download(source: remoteItemUrl!, target: itemGzUrl) { error in
+                Self.download(source: remoteItemUrl!, target: itemGzUrl) { [self] error in
                     if let error = error {
-                        completion?(error)
+                        synchronize { state[subset] = .failed(error) }
                         return
                     }
                     do {
                         try Self.gunzip(source: itemGzUrl, target: itemUrl)
-                        load(item, itemUrl)
+                        load(subset, itemUrl)
                     } catch {
-                        completion?(error)
+                        synchronize { state[subset] = .failed(error) }
                         return
                     }
                 }
             } else {
                 do {
                     try Self.gunzip(source: itemGzUrl, target: itemUrl)
-                    load(item, itemUrl)
+                    load(subset, itemUrl)
                 } catch {
-                    completion?(error)
+                    synchronize { state[subset] = .failed(error) }
                     return
                 }
             }
@@ -140,9 +189,9 @@ class MNIST: ObservableObject {
         task.resume()
     }
     
-    private static func readImages(from source: URL) -> [[UInt8]] {
+    private static func readImages(from source: URL) -> [MNISTEntity] {
         let handle = try! FileHandle(forReadingFrom: source)
-        var images = [[UInt8]]()
+        var images = [MNISTImage]()
         
         handle.seek(toFileOffset: 0)
         _ = handle.readData(ofLength: MemoryLayout<UInt32>.size) // magic number
@@ -164,7 +213,7 @@ class MNIST: ObservableObject {
         return images
     }
     
-    private static func readLabels(from source: URL) -> [UInt8] {
+    private static func readLabels(from source: URL) -> [MNISTEntity] {
         let handle = try! FileHandle(forReadingFrom: source)
         
         handle.seek(toFileOffset: 0)
@@ -181,8 +230,8 @@ class MNIST: ObservableObject {
     
     // https://stackoverflow.com/a/66228135 (comprehensive refresher on capture lists and thread safety)
     private func synchronize<T>(code: () throws -> T) rethrows -> T {
-        state.lock()
-        defer { state.unlock() }
+        lock.lock()
+        defer { lock.unlock() }
         return try code()
     }
 }
