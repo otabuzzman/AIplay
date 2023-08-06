@@ -5,13 +5,40 @@ struct Network: View {
     @ObservedObject var viewModel: NetworkViewModel
     
     var body: some View {
-        EmptyView()
+        VStack {
+            Circle().foregroundColor(viewModel.state.color)
+            Button {
+                let data = viewModel.encode()
+                print(data.count)
+            } label: {
+                Image(systemName: "square.and.arrow.down")
+            }
+        }
+    }
+}
+
+enum NetworkState {
+    case random
+    case stained
+    case trained
+    
+    var color: Color {
+        switch self {
+        case .random:
+            return .gray
+        case .stained:
+            return .yellow
+        case .trained:
+            return .green
+        }
     }
 }
 
 class NetworkViewModel: ObservableObject {
     private var layers: [Layer]
     private var alpha: Float // learning rate
+    
+    @Published var state: NetworkState = .random
     
     // each layer's output O
     private var O: [Matrix<Float>]!
@@ -36,15 +63,41 @@ class NetworkViewModel: ObservableObject {
         for layer in (0..<layers.count).reversed() {
             E = layers[layer].train(for: O[layer], with: E, alpha)
         }
+        state = .trained
+    }
+}
+
+extension NetworkViewModel {
+    func encode() -> Data {
+        var network = Data("NN".utf8) // magic number
+        
+        var learningRate = alpha .bitPattern.bigEndian
+        withUnsafePointer(to: &learningRate) { network.append(UnsafeBufferPointer(start: $0, count: 1)) }
+        
+        var numberOfLayers = layers.count.bigEndian
+        withUnsafePointer(to: &numberOfLayers) { network.append(UnsafeBufferPointer(start: $0, count: 1)) }
+        
+        layers.forEach { layer in
+            var numberOfInputs = layer.inputs.bigEndian
+            withUnsafePointer(to: &numberOfInputs) { network.append(UnsafeBufferPointer(start: $0, count: 1)) }
+            var numberOfPUnits = layer.punits.bigEndian
+            withUnsafePointer(to: &numberOfPUnits) { network.append(UnsafeBufferPointer(start: $0, count: 1)) }
+            layer.W.forEach {
+                var weights = $0.bitPattern.bigEndian
+                withUnsafePointer(to: &weights) { network.append(UnsafeBufferPointer(start: $0, count: 1)) }
+            }
+        }
+        
+        return network
     }
 }
 
 struct Layer {
-    private let inputs: Int
-    private let punits: Int
-    private let f: (Float) -> Float
+    let inputs: Int
+    let punits: Int
+    private var f: ((Float) -> Float)? // Codable expects omitted properties initialized
     
-    private var W: Matrix<Float>
+    private(set) var W: Matrix<Float>
     
     init(
         numberOfInputs inputs: Int = 1,
@@ -59,13 +112,13 @@ struct Layer {
     }
     
     func query(for I: Matrix<Float>) -> Matrix<Float> {
-        return (W • I).map { f($0) }
+        return (W • I).map { f!($0) }
     }
     
     mutating func train(for I: Matrix<Float>, with E: Matrix<Float>, _ alpha: Float) -> Matrix<Float> {
         let O = query(for: I)
         let B = W.T • E
-        W = W + alpha * ((E * O * (1.0 - O)) • I.T)
+        W += alpha * ((E * O * (1.0 - O)) • I.T)
         return B
     }
 }

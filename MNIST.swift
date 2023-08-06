@@ -98,18 +98,26 @@ class MNISTViewModel: ObservableObject {
     
     func load(from folder: URL) {
         let baseURL = "http://yann.lecun.com/exdb/mnist/"
-        let load = { [self] (subset: MNISTSubset, itemUrl: URL) -> Void in
+        let load = { [self] (subset: (MNISTSubset, URL), error: Error?) -> Void in
             Task { @MainActor in
-                let entity: [MNISTEntity]
-                switch subset {
-                case .images:
-                    entity = Self.readImages(from: itemUrl)
-                case .labels:
-                    entity = Self.readLabels(from: itemUrl)
-                }
-                synchronize {
-                    dataset[subset] = entity
-                    state[subset] = .loaded
+                do {
+                    let entity: [MNISTEntity]
+                    switch subset.0 {
+                    case .images:
+                        entity = try Self.readImages(from: subset.1)
+                    case .labels:
+                        entity = try Self.readLabels(from: subset.1)
+                    }
+                    synchronize {
+                        if let error = error {
+                            state[subset.0] = .failed(error)
+                        } else {
+                            dataset[subset.0] = entity
+                            state[subset.0] = .loaded
+                        }
+                    }
+                } catch {
+                    state[subset.0] = .failed(error)
                 }
             }
         }
@@ -117,7 +125,7 @@ class MNISTViewModel: ObservableObject {
             synchronize { state[subset] = .loading }
             let itemUrl = folder.appending(path: subset.name)
             if FileManager.default.fileExists(atPath: itemUrl.path) {
-                load(subset, itemUrl)
+                load((subset, itemUrl), nil)
                 return
             }
             let itemGzUrl = itemUrl.appendingPathExtension(for: .gzip)
@@ -125,25 +133,25 @@ class MNISTViewModel: ObservableObject {
                 let remoteItemUrl = URL(string: baseURL)?
                     .appending(path: subset.name)
                     .appendingPathExtension(for: .gzip)
-                Self.download(source: remoteItemUrl!, target: itemGzUrl) { [self] error in
+                Self.download(source: remoteItemUrl!, target: itemGzUrl) { error in
                     if let error = error {
-                        synchronize { state[subset] = .failed(error) }
+                        load((subset, itemUrl), error)
                         return
                     }
                     do {
                         try Self.gunzip(source: itemGzUrl, target: itemUrl)
-                        load(subset, itemUrl)
+                        load((subset, itemUrl), nil)
                     } catch {
-                        synchronize { state[subset] = .failed(error) }
+                        load((subset, itemUrl), error)
                         return
                     }
                 }
             } else {
                 do {
                     try Self.gunzip(source: itemGzUrl, target: itemUrl)
-                    load(subset, itemUrl)
+                    load((subset, itemUrl), nil)
                 } catch {
-                    synchronize { state[subset] = .failed(error) }
+                    load((subset, itemUrl), error)
                     return
                 }
             }
@@ -189,8 +197,8 @@ class MNISTViewModel: ObservableObject {
         task.resume()
     }
     
-    private static func readImages(from source: URL) -> [MNISTEntity] {
-        let handle = try! FileHandle(forReadingFrom: source)
+    private static func readImages(from source: URL) throws -> [MNISTEntity] {
+        let handle = try FileHandle(forReadingFrom: source)
         var images = [MNISTImage]()
         
         handle.seek(toFileOffset: 0)
@@ -213,8 +221,8 @@ class MNISTViewModel: ObservableObject {
         return images
     }
     
-    private static func readLabels(from source: URL) -> [MNISTEntity] {
-        let handle = try! FileHandle(forReadingFrom: source)
+    private static func readLabels(from source: URL) throws -> [MNISTEntity] {
+        let handle = try FileHandle(forReadingFrom: source)
         
         handle.seek(toFileOffset: 0)
         _ = handle.readData(ofLength: MemoryLayout<UInt32>.size) // magic number

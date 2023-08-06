@@ -45,6 +45,10 @@ struct Matrix<Entry: Numeric> {
         return Self(rows: rows, columns: columns, entries: entries)
     }
     
+    func forEach(_ process: (Entry) throws -> Void) rethrows {
+        try entries.forEach { try process($0) }
+    }
+    
     private func indexIsValid(row: Int, column: Int) -> Bool {
         return row >= 0 && row < rows && column >= 0 && column < columns
     }
@@ -81,6 +85,10 @@ extension Matrix {
             }
         }
         return result
+    }
+    
+    static func +=(lhs: inout Self, rhs: Self) {
+        lhs = lhs + rhs
     }
     
     static func -(lhs: Entry, rhs: Self) -> Self {
