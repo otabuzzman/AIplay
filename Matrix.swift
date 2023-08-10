@@ -1,7 +1,8 @@
+import Foundation
+
 struct Matrix<Entry: Numeric> {
-    let rows: Int
-    let columns: Int
-    
+    private let rows: Int
+    private let columns: Int
     private var entries: [Entry]
     
     var T: Matrix {
@@ -43,10 +44,6 @@ struct Matrix<Entry: Numeric> {
             entries[e] = try transform(entries[e])
         }
         return Self(rows: rows, columns: columns, entries: entries)
-    }
-    
-    func forEach(_ process: (Entry) throws -> Void) rethrows {
-        try entries.forEach { try process($0) }
     }
     
     private func indexIsValid(row: Int, column: Int) -> Bool {
@@ -177,5 +174,58 @@ extension Matrix: Equatable {
     
     static func !=(lhs: Self, rhs: Self) -> Bool {
         return !(lhs == rhs)
+    }
+}
+
+extension Matrix: CustomStringConvertible {
+    var description: String {
+        var list = "[ "
+        for index in 0..<entries.count {
+            if index == 3 {
+                list += ", ..."
+                break
+            }
+            list += "\(entries[index])"
+            if 2 > index {
+                list += ", "
+            }
+        }
+        list += " ]"
+        return "Matrix(rows: \(rows), columns: \(columns), entries: \(list))"
+    }
+}
+
+extension Matrix: CustomCodable where Entry: CustomNumericCoder {
+    init?(from: Data) {
+        var data = from
+        
+        guard Int(from: data)?.bigEndian != nil else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        guard let rows = Int(from: data)?.bigEndian else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        guard let columns = Int(from: data)?.bigEndian else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        guard let entriesCount = Int(from: data)?.bigEndian else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        var entries = [Entry]()
+        for _ in 0..<entriesCount {
+            guard let entry = Entry(from: data)?.bigEndian else { return nil }
+            entries.append(entry) 
+            data = data.advanced(by: MemoryLayout<Entry>.size)
+        }
+        
+        self.init(rows: rows, columns: columns, entries: entries)
+    }
+    
+    func encode() throws -> Data {
+        var data = rows.bigEndian.encode
+        data += columns.bigEndian.encode
+        data += entries.count.bigEndian.encode
+        entries.forEach { data += $0.bigEndian.encode }
+        return data.count.bigEndian.encode + data
     }
 }

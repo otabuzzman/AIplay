@@ -6,10 +6,7 @@ struct MYONN: View {
     @StateObject var viewModel = MYONNViewModel()
     
     @StateObject var mnist = MNISTViewModel(in: getAppFolder())
-    @StateObject var network = NetworkViewModel(
-        layersWithSizes: [784, 100, 10],
-        activationFunction: .sigmoid,
-        learningRate: 0.3)
+    @StateObject var network = NetworkViewModel(layersWithSizes: [784, 100, 10], learningRate: 0.3)
     
     var body: some View {
         HStack {
@@ -61,24 +58,8 @@ extension MYONN {
     }
 }
 
-enum ActivationFunction {
-    case identity
-    case sigmoid
-    
-    var implementation: (Float) -> Float {
-        switch self {
-        case .identity:
-            return { x in x }
-        case .sigmoid:
-            return { x in 1.0 / (1.0 + expf(-x)) }
-        }
-    }
-}
-
 extension NetworkViewModel {
-    convenience init(
-        layersWithSizes: [Int], activationFunction: ActivationFunction, learningRate: Float
-    ) {
+    convenience init(layersWithSizes: [Int], learningRate: Float) {
         var layers: [Layer] = []
         for i in 1..<layersWithSizes.count {
             let prevLayerSize = layersWithSizes[i - 1]
@@ -86,10 +67,10 @@ extension NetworkViewModel {
             let layer = Layer(
                 numberOfInputs: prevLayerSize,
                 numberOfPUnits: thisLayerSize,
-                activationFunction: activationFunction.implementation)
+                activationFunction: .sigmoid)
             layers.append(layer)
         }
-        self.init(layers, alpha: learningRate)
+        self.init(layers, learningRate: learningRate)
     }
     
     func query(for I: [UInt8]) -> Matrix<Float> {

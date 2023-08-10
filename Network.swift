@@ -8,8 +8,6 @@ struct Network: View {
         VStack {
             Circle().foregroundColor(viewModel.state.color)
             Button {
-                let data = viewModel.encode()
-                print(data.count)
             } label: {
                 Image(systemName: "square.and.arrow.down")
             }
@@ -34,18 +32,18 @@ enum NetworkState {
     }
 }
 
-class NetworkViewModel: ObservableObject {
+final class NetworkViewModel: ObservableObject {
     private var layers: [Layer]
-    private var alpha: Float // learning rate
+    private var learningRate: Float
     
     @Published var state: NetworkState = .random
     
     // each layer's output O
     private var O: [Matrix<Float>]!
     
-    init(_ layers: [Layer], alpha: Float) {
+    init(_ layers: [Layer], learningRate: Float) {
         self.layers = layers
-        self.alpha = alpha
+        self.learningRate = learningRate
     }
     
     func query(for I: Matrix<Float>) -> Matrix<Float> {
@@ -61,64 +59,135 @@ class NetworkViewModel: ObservableObject {
         var E = T - query(for: I)
         // back propagate error layer by layer in reverse order
         for layer in (0..<layers.count).reversed() {
-            E = layers[layer].train(for: O[layer], with: E, alpha)
+            E = layers[layer].train(for: O[layer], with: E, alpha: learningRate)
         }
         state = .trained
     }
 }
 
-extension NetworkViewModel {
-    func encode() -> Data {
-        var network = Data("NN".utf8) // magic number
+extension NetworkViewModel: CustomStringConvertible {
+    var description: String {
+        "NetworkViewModel(layers: \(layers), learningRate: \(learningRate))"
+    }
+}
+
+extension NetworkViewModel: CustomCodable {
+    static let magicNumber = "!NN"
+    
+    convenience init?(from: Data) {
+        guard
+            String(from: from.subdata(in: 0..<Self.magicNumber.count)) == Self.magicNumber
+        else { return nil }
+        var data = from.advanced(by: Self.magicNumber.count)
         
-        var learningRate = alpha .bitPattern.bigEndian
-        withUnsafePointer(to: &learningRate) { network.append(UnsafeBufferPointer(start: $0, count: 1)) }
+        guard let learningRate = Float(from: data)?.bigEndian else { return nil }
+        data = data.advanced(by: MemoryLayout<Float>.size)
         
-        var numberOfLayers = layers.count.bigEndian
-        withUnsafePointer(to: &numberOfLayers) { network.append(UnsafeBufferPointer(start: $0, count: 1)) }
+        guard let layersCount = Int(from: data)?.bigEndian else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
         
-        layers.forEach { layer in
-            var numberOfInputs = layer.inputs.bigEndian
-            withUnsafePointer(to: &numberOfInputs) { network.append(UnsafeBufferPointer(start: $0, count: 1)) }
-            var numberOfPUnits = layer.punits.bigEndian
-            withUnsafePointer(to: &numberOfPUnits) { network.append(UnsafeBufferPointer(start: $0, count: 1)) }
-            layer.W.forEach {
-                var weights = $0.bitPattern.bigEndian
-                withUnsafePointer(to: &weights) { network.append(UnsafeBufferPointer(start: $0, count: 1)) }
-            }
+        var layers = [Layer]()
+        for _ in 0..<layersCount {
+            guard let layerSize = Int(from: data)?.bigEndian else { return nil }
+            data = data.advanced(by: MemoryLayout<Int>.size)
+            guard let layer = Layer(from: data) else { return nil }
+            layers.append(layer)
+            data = data.advanced(by: layerSize)
         }
         
-        return network
+        self.init(layers, learningRate: learningRate)
+    }
+    
+    func encode() throws -> Data {
+        var data = Self.magicNumber.encode
+        data += learningRate.bigEndian.encode
+        data += layers.count.bigEndian.encode
+        try layers.forEach { data += try $0.encode() }
+        return data
+    }
+}
+
+enum ActivationFunction: Int {
+    case identity = 1
+    case sigmoid
+    
+    var implementation: (Float) -> Float {
+        switch self {
+        case .identity:
+            return { x in x }
+        case .sigmoid:
+            return { x in 1.0 / (1.0 + expf(-x)) }
+        }
     }
 }
 
 struct Layer {
-    let inputs: Int
-    let punits: Int
-    private var f: ((Float) -> Float)? // Codable expects omitted properties initialized
-    
-    private(set) var W: Matrix<Float>
+    private let inputs: Int
+    private let punits: Int
+    private let f: ActivationFunction
+    private var W: Matrix<Float>
     
     init(
         numberOfInputs inputs: Int = 1,
-        numberOfPUnits punits: Int = 1, 
-        activationFunction f: @escaping (Float) -> Float = { $0 }
+        numberOfPUnits punits: Int = 1,
+        activationFunction f: ActivationFunction = .identity,
+        weights W: Matrix<Float>? = nil
     ) {
         self.inputs = inputs
         self.punits = punits
         self.f = f
         
-        W = Matrix<Float>(rows: punits, columns: inputs).map { _ in Float.random(in: -0.5...0.5) }
+        if let W = W {
+            self.W = W
+        } else {
+            self.W = Matrix<Float>(rows: punits, columns: inputs).map { _ in Float.random(in: -0.5...0.5) }
+        }
     }
     
     func query(for I: Matrix<Float>) -> Matrix<Float> {
-        return (W • I).map { f!($0) }
+        return (W • I).map { f.implementation($0) }
     }
     
-    mutating func train(for I: Matrix<Float>, with E: Matrix<Float>, _ alpha: Float) -> Matrix<Float> {
+    mutating func train(for I: Matrix<Float>, with E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
         let O = query(for: I)
         let B = W.T • E
         W += alpha * ((E * O * (1.0 - O)) • I.T)
         return B
+    }
+}
+
+extension Layer: CustomStringConvertible {
+    var description: String {
+        "Layer(inputs: \(inputs), punits: \(punits), f: \(f), W: \(W))"
+    }
+}
+
+extension Layer: CustomCodable {
+    init?(from: Data) {
+        var data = from
+        
+        guard let inputs = Int(from: data)?.bigEndian else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        guard let punits = Int(from: data)?.bigEndian else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+
+        guard
+            let activationFunction = Int(from: data)?.bigEndian,
+            let f = ActivationFunction(rawValue: activationFunction)
+        else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        guard let W = Matrix<Float>(from: data) else { return nil }
+        
+        self.init(numberOfInputs: inputs, numberOfPUnits: punits, activationFunction: f, weights: W)
+    }
+    
+    func encode() throws -> Data {
+        var data = inputs.bigEndian.encode
+        data += punits.bigEndian.encode
+        data += f.rawValue.bigEndian.encode
+        data += try W.encode()
+        return data.count.bigEndian.encode + data
     }
 }
