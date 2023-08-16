@@ -6,12 +6,15 @@ struct MYONN: View {
     @StateObject var viewModel = MYONNViewModel()
     
     @StateObject var mnist = MNISTViewModel(in: getAppFolder())
-    @StateObject var network = NetworkViewModel(layersWithSizes: [784, 100, 10], learningRate: 0.3)
+    // specialized MYONN factory
+    @StateObject var network = NetworkViewModel(GenericFactory.create(MYONNFactory(), nil)!)
+    // Network factory with MYONN configuration
+    // @StateObject var network = NetworkViewModel(GenericFactory.create(NetworkFactory(), MYONNConfig)!)
     
     var body: some View {
         HStack {
-            MNIST(viewModel: mnist)
-            Network(viewModel: network)
+            MNISTView(viewModel: mnist)
+            NetworkView(viewModel: network)
         }
         .sheet(isPresented: $folderPickerShow) {
             FolderPicker { result in
@@ -58,33 +61,17 @@ extension MYONN {
     }
 }
 
-extension NetworkViewModel {
-    convenience init(layersWithSizes: [Int], learningRate: Float) {
-        var layers: [Layer] = []
-        for i in 1..<layersWithSizes.count {
-            let prevLayerSize = layersWithSizes[i - 1]
-            let thisLayerSize = layersWithSizes[i]
-            let layer = Layer(
-                numberOfInputs: prevLayerSize,
-                numberOfPUnits: thisLayerSize,
-                activationFunction: .sigmoid)
-            layers.append(layer)
-        }
-        self.init(layers, learningRate: learningRate)
-    }
-    
-    func query(for I: [UInt8]) -> Matrix<Float> {
-        let input = Matrix<Float>(rows: I.count, columns: 1, entries: I.map({ Float($0) }))
-            .map { ($0 / 255.0 * 0.99) + 0.01 } // MYONN, p. 151 ff.
-        return query(for: input)
-    }
-    
-    func train(for I: [UInt8], with T: UInt8) -> Void {
-        let input = Matrix<Float>(rows: I.count, columns: 1, entries: I.map({ Float($0) }))
-            .map { ($0 / 255.0 * 0.99) + 0.01 }
-        var target = Matrix<Float>(rows: 10, columns: 1)
-            .map { _ in 0.01 }
-        target[Int(T), 0] = 0.99
-        train(for: input, with: target)
+// NYONN configuration for Network factory
+let MYONNConfig: NetworkConfig = (
+    layersWithSizes: [784, 100, 10], activationFunctions: [.sigmoid, .sigmoid], learningRate: 0.5
+)
+
+// specialized NYONN factory
+struct MYONNFactory: AbstractFactory {
+    func create(_ config: Never?) -> Network? {
+        Network([
+            Layer(numberOfInputs: 784, numberOfPUnits: 100, activationFunction: .sigmoid),
+            Layer(numberOfInputs: 100, numberOfPUnits: 10, activationFunction: .sigmoid)
+        ], alpha: 0.3)
     }
 }

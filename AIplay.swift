@@ -5,7 +5,7 @@ struct ContentView: View {
     var body: some View {
         VStack {
             AppIcon()
-                .frame(width: /*@START_MENU_TOKEN@*/100/*@END_MENU_TOKEN@*/, height: /*@START_MENU_TOKEN@*/100/*@END_MENU_TOKEN@*/, alignment: /*@START_MENU_TOKEN@*/.center/*@END_MENU_TOKEN@*/)
+                .frame(width: 100, height: 100, alignment: .center)
             MYONN()
         }
     }
@@ -62,4 +62,37 @@ struct AIplay: App {
             }
         }
     }
+}
+
+func stringOfElements<T>(in this: [T], count: Int? = nil, format: @escaping (T) -> String = { element in String(describing: element) }) -> String {
+    var stringOfElements = ""
+    let substring: (Int, Int) -> String = { startIndex, count in
+        var substring: String = ""
+        let endIndex = startIndex + count - 1
+        for index in startIndex...endIndex {
+            substring += format(this[index])
+            if index == endIndex { break }
+            substring += ", "
+        }
+        return substring
+    }
+    let maxCount = count ?? this.count
+    if this.count > maxCount {
+        stringOfElements += substring(0, maxCount - 2) + ", ... " + substring(maxCount  - 2, 2)
+    } else {
+        stringOfElements += substring(0, maxCount)
+    }
+    return stringOfElements
+}
+
+struct GenericFactory {
+    static func create<Config, Output, Factory: AbstractFactory>(_ object: Factory,_ config: Config) -> Output? where Factory.Config == Config, Factory.Output == Output {
+        object.create(config)
+    }
+}
+
+protocol AbstractFactory {
+    associatedtype Config
+    associatedtype Output
+    func create(_ config: Config) -> Output?
 }

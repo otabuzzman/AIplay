@@ -3,7 +3,7 @@ import Foundation
 
 import DataCompression
 
-struct MNIST: View {
+struct MNISTView: View {
     @ObservedObject var viewModel: MNISTViewModel
     
     var body: some View {

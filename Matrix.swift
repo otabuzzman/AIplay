@@ -179,23 +179,11 @@ extension Matrix: Equatable {
 
 extension Matrix: CustomStringConvertible {
     var description: String {
-        var list = "[ "
-        for index in 0..<entries.count {
-            if index == 3 {
-                list += ", ..."
-                break
-            }
-            list += "\(entries[index])"
-            if 2 > index {
-                list += ", "
-            }
-        }
-        list += " ]"
-        return "Matrix(rows: \(rows), columns: \(columns), entries: \(list))"
+        "Matrix(rows: \(rows), columns: \(columns), entries: [\(stringOfElements(in: entries, count: 10, format: { String(describing: $0) }))]"
     }
 }
 
-extension Matrix: CustomCodable where Entry: CustomNumericCoder {
+extension Matrix: CustomCoder where Entry: CustomNumericCoder {
     init?(from: Data) {
         var data = from
         
@@ -221,7 +209,7 @@ extension Matrix: CustomCodable where Entry: CustomNumericCoder {
         self.init(rows: rows, columns: columns, entries: entries)
     }
     
-    func encode() throws -> Data {
+    var encode: Data {
         var data = rows.bigEndian.encode
         data += columns.bigEndian.encode
         data += entries.count.bigEndian.encode

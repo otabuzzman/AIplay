@@ -16,6 +16,8 @@ let package = Package(
         .iOSApplication(
             name: "AIplay",
             targets: ["AppModule"],
+            bundleIdentifier: "com.otabuzzman.aiplay.ios",
+            teamIdentifier: "28FV44657B",
             displayVersion: "1.0",
             bundleVersion: "1",
             appIcon: .asset("AppIcon"),
@@ -30,7 +32,7 @@ let package = Package(
                 .landscapeLeft,
                 .portraitUpsideDown(.when(deviceFamilies: [.pad]))
             ],
-            additionalInfoPlistContentFilePath: "Resources/HttpInfo.plist"
+            additionalInfoPlistContentFilePath: "Resources/AdditionalInfo.plist"
         )
     ],
     dependencies: [

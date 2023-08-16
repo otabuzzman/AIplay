@@ -1,52 +1,18 @@
-import SwiftUI
 import Foundation
 
-struct Network: View {
-    @ObservedObject var viewModel: NetworkViewModel
-    
-    var body: some View {
-        VStack {
-            Circle().foregroundColor(viewModel.state.color)
-            Button {
-            } label: {
-                Image(systemName: "square.and.arrow.down")
-            }
-        }
-    }
-}
-
-enum NetworkState {
-    case random
-    case stained
-    case trained
-    
-    var color: Color {
-        switch self {
-        case .random:
-            return .gray
-        case .stained:
-            return .yellow
-        case .trained:
-            return .green
-        }
-    }
-}
-
-final class NetworkViewModel: ObservableObject {
+struct Network {
     private var layers: [Layer]
-    private var learningRate: Float
-    
-    @Published var state: NetworkState = .random
+    private var alpha: Float
     
     // each layer's output O
     private var O: [Matrix<Float>]!
     
-    init(_ layers: [Layer], learningRate: Float) {
+    init(_ layers: [Layer], alpha: Float) {
         self.layers = layers
-        self.learningRate = learningRate
+        self.alpha = alpha
     }
     
-    func query(for I: Matrix<Float>) -> Matrix<Float> {
+    mutating func query(for I: Matrix<Float>) -> Matrix<Float> {
         O = [I] // first is output of pseudo input layer, which corresponds to input data
         for layer in layers { // query each layer in turn with output of previous
             O.append(layer.query(for: O.last!))
@@ -54,33 +20,32 @@ final class NetworkViewModel: ObservableObject {
         return O.last! // network's output layer O
     }
     
-    func train(for I: Matrix<Float>, with T: Matrix<Float>) -> Void {
+    mutating func train(for I: Matrix<Float>, with T: Matrix<Float>) -> Void {
         // network error at output layer O as square of difference T - O
         var E = T - query(for: I)
         // back propagate error layer by layer in reverse order
         for layer in (0..<layers.count).reversed() {
-            E = layers[layer].train(for: O[layer], with: E, alpha: learningRate)
+            E = layers[layer].train(for: O[layer], with: E, alpha: alpha)
         }
-        state = .trained
     }
 }
 
-extension NetworkViewModel: CustomStringConvertible {
+extension Network: CustomStringConvertible {
     var description: String {
-        "NetworkViewModel(layers: \(layers), learningRate: \(learningRate))"
+        "NetworkViewModel(layers: \(layers), alpha: \(alpha))"
     }
 }
 
-extension NetworkViewModel: CustomCodable {
-    static let magicNumber = "!NN"
+extension Network: CustomCoder {
+    static let magicNumber = "!NNXD"
     
-    convenience init?(from: Data) {
+    init?(from: Data) {
         guard
             String(from: from.subdata(in: 0..<Self.magicNumber.count)) == Self.magicNumber
         else { return nil }
         var data = from.advanced(by: Self.magicNumber.count)
         
-        guard let learningRate = Float(from: data)?.bigEndian else { return nil }
+        guard let alpha = Float(from: data)?.bigEndian else { return nil }
         data = data.advanced(by: MemoryLayout<Float>.size)
         
         guard let layersCount = Int(from: data)?.bigEndian else { return nil }
@@ -95,14 +60,14 @@ extension NetworkViewModel: CustomCodable {
             data = data.advanced(by: layerSize)
         }
         
-        self.init(layers, learningRate: learningRate)
+        self.init(layers, alpha: alpha)
     }
     
-    func encode() throws -> Data {
+    var encode: Data {
         var data = Self.magicNumber.encode
-        data += learningRate.bigEndian.encode
+        data += alpha.bigEndian.encode
         data += layers.count.bigEndian.encode
-        try layers.forEach { data += try $0.encode() }
+        layers.forEach { data += $0.encode }
         return data
     }
 }
@@ -162,7 +127,7 @@ extension Layer: CustomStringConvertible {
     }
 }
 
-extension Layer: CustomCodable {
+extension Layer: CustomCoder {
     init?(from: Data) {
         var data = from
         
@@ -171,7 +136,7 @@ extension Layer: CustomCodable {
         
         guard let punits = Int(from: data)?.bigEndian else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
-
+        
         guard
             let activationFunction = Int(from: data)?.bigEndian,
             let f = ActivationFunction(rawValue: activationFunction)
@@ -183,11 +148,35 @@ extension Layer: CustomCodable {
         self.init(numberOfInputs: inputs, numberOfPUnits: punits, activationFunction: f, weights: W)
     }
     
-    func encode() throws -> Data {
+    var encode: Data {
         var data = inputs.bigEndian.encode
         data += punits.bigEndian.encode
         data += f.rawValue.bigEndian.encode
-        data += try W.encode()
+        data += W.encode
         return data.count.bigEndian.encode + data
+    }
+}
+
+typealias NetworkConfig = (
+    layersWithSizes: [Int], activationFunctions: [ActivationFunction], learningRate: Float
+)
+
+struct NetworkFactory: AbstractFactory {
+    func create(_ config: NetworkConfig) -> Network? {
+        guard
+            config.layersWithSizes.count > 1,
+            config.layersWithSizes.count - 1 == config.activationFunctions.count
+        else { return nil }
+        var layers: [Layer] = []
+        for index in 1..<config.layersWithSizes.count {
+            let prevLayerSize = config.layersWithSizes[index - 1]
+            let thisLayerSize = config.layersWithSizes[index]
+            let layer = Layer(
+                numberOfInputs: prevLayerSize,
+                numberOfPUnits: thisLayerSize,
+                activationFunction: config.activationFunctions[index - 1])
+            layers.append(layer)
+        }
+        return Network(layers, alpha: config.learningRate)
     }
 }

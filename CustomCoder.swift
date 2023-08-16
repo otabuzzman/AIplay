@@ -1,14 +1,6 @@
 import Foundation
 
-protocol CustomEncodable {
-    func encode() throws -> Data
-}
-
-protocol CustumDecodable {
-    init?(from: Data)
-}
-
-typealias CustomCodable = CustomEncodable & CustumDecodable
+typealias CustomCoder = CustomEncoder & CustomDecoder
 
 protocol CustomEncoder {
     var encode: Data { get }
@@ -34,11 +26,11 @@ extension CustomDecoder where Self: ExpressibleByIntegerLiteral {
         _ = withUnsafeMutableBytes(of: &value) {
             from.copyBytes(to: $0, count: MemoryLayout<Self>.size)
         }
-        self = value 
+        self = value
     }
 }
 
-protocol CustomNumericCoder: CustomEncoder, CustomDecoder {
+protocol CustomNumericCoder: CustomCoder {
     var bigEndian: Self { get }
 }
 
@@ -64,27 +56,5 @@ extension String: CustomEncoder {
 extension String: CustomDecoder {
     init?(from: Data) {
         self.init(data: from, encoding: .utf8)
-    }
-}
-
-extension Data {
-    func description() -> String { // var description set by Foundation
-        var text = String(format: "Data(bytes: [", count)
-        let list: (Int, Int) -> String = { startIndex, count in
-            var text: String = ""
-            let endIndex = startIndex + count - 1
-            for index in startIndex...endIndex {
-                text += String(format: "0x%02X", self[index])
-                if index == endIndex { break }
-                text += ", "
-            }
-            return text
-        }
-        if count > 10 {
-            text += list(0, 8) + ", ... " + list(count - 2, 2)
-        } else {
-            text += list(0, count)
-        }
-        return text + String(format: "], count: %d)", count)
     }
 }
