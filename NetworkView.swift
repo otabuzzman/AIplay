@@ -32,12 +32,13 @@ struct NetworkView: View {
     @State private var isImporting = false
     
     var body: some View {
-        VStack {
-            Circle().foregroundColor(.gray)
+        Group {
             Button {
                 isExporting = true
             } label: {
                 Image(systemName: "square.and.arrow.down")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
             }
             .fileExporter(isPresented: $isExporting,
                           document: NetworkExchangeDocument(viewModel.network.encode),
@@ -53,6 +54,8 @@ struct NetworkView: View {
                 isImporting = true
             } label: {
                 Image(systemName: "square.and.arrow.up")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
             }
             .fileImporter(isPresented: $isImporting,
                           allowedContentTypes: [.nnxd], allowsMultipleSelection: false) { result in
@@ -134,7 +137,7 @@ class NetworkViewModel: ObservableObject {
         return network.query(for: input)
     }
     
-    func train(for I: [UInt8], with T: UInt8) -> Void {
+    func train(for I: [UInt8], with T: UInt8) async -> Void {
         let input = Matrix<Float>(rows: I.count, columns: 1, entries: I.map({ Float($0) }))
             .map { ($0 / 255.0 * 0.99) + 0.01 }
         var target = Matrix<Float>(rows: 10, columns: 1)

@@ -99,6 +99,9 @@ class MNISTViewModel: ObservableObject {
     func load(from folder: URL) {
         let baseURL = "http://yann.lecun.com/exdb/mnist/"
         let load = { [self] (subset: (MNISTSubset, URL), error: Error?) -> Void in
+            if let error = error {
+                synchronize { state[subset.0] = .failed(error) }
+            }
             Task { @MainActor in
                 do {
                     let entity: [MNISTEntity]
@@ -109,12 +112,8 @@ class MNISTViewModel: ObservableObject {
                         entity = try Self.readLabels(from: subset.1)
                     }
                     synchronize {
-                        if let error = error {
-                            state[subset.0] = .failed(error)
-                        } else {
-                            dataset[subset.0] = entity
-                            state[subset.0] = .loaded
-                        }
+                        dataset[subset.0] = entity
+                        state[subset.0] = .loaded
                     }
                 } catch {
                     state[subset.0] = .failed(error)

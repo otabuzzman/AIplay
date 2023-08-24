@@ -6,7 +6,7 @@ struct ContentView: View {
         VStack {
             AppIcon()
                 .frame(width: 100, height: 100, alignment: .center)
-            MYONN()
+            MYONNView()
         }
     }
 }
@@ -85,6 +85,7 @@ func stringOfElements<T>(in this: [T], count: Int? = nil, format: @escaping (T) 
     return stringOfElements
 }
 
+// https://holyswift.app/create-generic-factory-in-swift/
 struct GenericFactory {
     static func create<Config, Output, Factory: AbstractFactory>(_ object: Factory,_ config: Config) -> Output? where Factory.Config == Config, Factory.Output == Output {
         object.create(config)

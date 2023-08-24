@@ -1,11 +1,11 @@
 import Foundation
 
 struct Matrix<Entry: Numeric> {
-    private let rows: Int
-    private let columns: Int
-    private var entries: [Entry]
+    private var rows: Int
+    private var columns: Int
+    private(set) var entries: [Entry]
     
-    var T: Matrix {
+    var T: Self {
         var transpose = Self(rows: columns, columns: rows)
         for r in 0..<rows {
             for c in 0..<columns {
@@ -23,7 +23,9 @@ struct Matrix<Entry: Numeric> {
     }
     
     init(rows: Int = 1, columns: Int = 1) {
-        self.init(rows: rows, columns: columns, entries: Array<Entry>(repeating: .zero, count: rows * columns))
+        assert(rows > 0 && columns > 0, "wrong dimensions")
+        let entries = Array<Entry>(repeating: .zero, count: rows * columns)
+        self.init(rows: rows, columns: columns, entries: entries)
     }
     
     subscript(row: Int, column: Int) -> Entry {
@@ -37,7 +39,7 @@ struct Matrix<Entry: Numeric> {
             entries[(row * columns) + column] = value
         }
     }
-
+    
     func map(_ transform: (Entry) throws -> Entry) rethrows -> Self {
         var entries = self.entries
         for e in 0..<entries.count {
