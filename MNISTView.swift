@@ -96,7 +96,7 @@ class MNISTViewModel: ObservableObject {
         }
     }
     
-    func load(from folder: URL) {
+    func load(from folder: URL) -> Void {
         let baseURL = "http://yann.lecun.com/exdb/mnist/"
         let load = { [self] (subset: (MNISTSubset, URL), error: Error?) -> Void in
             if let error = error {
@@ -157,7 +157,7 @@ class MNISTViewModel: ObservableObject {
         }
     }
     
-    private static func gunzip(source: URL, target: URL) throws {
+    private static func gunzip(source: URL, target: URL) throws -> Void {
         let contentGz = try Data(contentsOf: source)
         guard
             let content = contentGz.gunzip()
@@ -165,7 +165,7 @@ class MNISTViewModel: ObservableObject {
         try content.write(to: target, options: .noFileProtection)
     }
     
-    private static func download(source: URL, target: URL, _ completion: @escaping (Error?) -> Void) {
+    private static func download(source: URL, target: URL, _ completion: @escaping (Error?) -> Void) -> Void {
         let urlSession = URLSession(configuration: .default)
         let task = urlSession.downloadTask(with: source) { location, response, error in
             if let error = error {
@@ -244,7 +244,7 @@ class MNISTViewModel: ObservableObject {
 }
 
 extension URL {
-    func accessSecurityScopedResource(_ accessor: (URL) -> Void) {
+    func accessSecurityScopedResource(_ accessor: (URL) -> Void) -> Void {
         let didStartAccessing = startAccessingSecurityScopedResource()
         defer { if didStartAccessing { stopAccessingSecurityScopedResource() } }
         accessor(self)

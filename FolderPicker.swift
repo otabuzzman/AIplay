@@ -15,7 +15,7 @@ struct FolderPicker: UIViewControllerRepresentable {
         return controller
     }
     
-    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: UIViewControllerRepresentableContext<FolderPicker>) {
+    func updateUIViewController(_ uiViewController: UIDocumentPickerViewController, context: UIViewControllerRepresentableContext<FolderPicker>) -> Void {
     }
     
     func makeCoordinator() -> FolderPickerCoordinator {
@@ -32,11 +32,11 @@ class FolderPickerCoordinator: NSObject, UINavigationControllerDelegate {
 }
 
 extension FolderPickerCoordinator: UIDocumentPickerDelegate {
-    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) {
+    func documentPickerWasCancelled(_ controller: UIDocumentPickerViewController) -> Void {
         completion?(.failure(.canceled))
     }
     
-    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
+    func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) -> Void {
         completion?(.success(urls[0]))
     }
 }

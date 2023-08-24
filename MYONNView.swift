@@ -5,15 +5,14 @@ struct MYONNView: View {
     
     @StateObject var viewModel = MYONNViewModel()
     
-    @State private var falseResults = 0
-    @State private var resultCorrect = true
+    @State private var queryResultCorrect: Bool?
 
     var body: some View {
         VStack {
             HStack {
                 MNISTView(viewModel: viewModel.mnist)
                 Spacer()
-                Circle().foregroundColor(resultCorrect ? .red : .green)
+                QueryState(value: queryResultCorrect)
             }
             ProgressView(value: viewModel.progressValue)
             HStack {
@@ -21,7 +20,7 @@ struct MYONNView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                 Button {
-                    Task {
+                    Task { @MainActor in
                         await viewModel.train(startWithSample: viewModel.samplesTrained, count: 100)
                     }
                 } label: {
@@ -43,10 +42,7 @@ struct MYONNView: View {
                     var result: Int
                     var target: Int
                     (result, target) = viewModel.query(sample: Int.random(in: 0..<10000))
-                    resultCorrect = result == target
-                    if !resultCorrect {
-                        falseResults += 1
-                    }
+                    queryResultCorrect = result == target
                 } label: {
                     Image(systemName: "doc")
                         .resizable()
@@ -59,7 +55,10 @@ struct MYONNView: View {
                 }
             }
             HStack {
-                Button {} label: {
+                Button {
+                    viewModel.reset()
+                    queryResultCorrect = nil
+                } label: {
                     Image(systemName: "arrow.counterclockwise")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -92,28 +91,37 @@ extension MYONNView {
         // var network = NetworkViewModel(GenericFactory.create(NetworkFactory(), MYONNConfig)!)
         
         @Published var samplesTrained = 0
-        @Published var samplesQueried = 0
+        @Published var samplesQueried = [Int]()
         
-        @Published var progressValue: Float = 0
+        @Published var progressValue: Float = 0 // 0...1
         
-        func train(startWithSample index: Int, count: Int) async {
-            samplesTrained += count
+        func train(startWithSample index: Int, count: Int) async -> Void {
             progressValue = 0
-            for i in index..<index + count {
-                let input = (mnist.dataset[.images(.train)] as! [[UInt8]])[i]
-                let target = (mnist.dataset[.labels(.train)] as! [UInt8])[i]
+            for i in 0..<count {
+                let input = (mnist.dataset[.images(.train)] as! [[UInt8]])[index + i]
+                let target = (mnist.dataset[.labels(.train)] as! [UInt8])[index + i]
                 await network.train(for: input, with: target)
-                progressValue = Float(i) / Float(count)
+                progressValue = Float(i) / Float(count - 1)
             }
-            progressValue = 0
+            samplesTrained += count
+            Task { @MainActor in
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+                progressValue = 0
+            }
         }
         
         func query(sample index: Int) -> (Int, Int) {
-            samplesQueried += 1
             let input = (mnist.dataset[.images(.test)] as! [[UInt8]])[index]
             let target = (mnist.dataset[.labels(.test)] as! [UInt8])[index]
             let result = network.query(for: input).maxValueIndex()
+            samplesQueried.append(result == target ? 1 : 0)
             return (result, Int(target))
+        }
+        
+        func reset() -> Void {
+            network = NetworkViewModel(GenericFactory.create(MYONNFactory(), nil)!)
+            samplesTrained = 0
+            samplesQueried.removeAll(keepingCapacity: false)
         }
     }
 }
@@ -140,5 +148,13 @@ extension Matrix where Entry: Comparable {
     
     func maxValueIndex() -> Int {
         entries.indices.max(by: { entries[$0] < entries[$1] })! // probably save to force unwrap
+    }
+}
+
+struct QueryState: View {
+    var value: Bool?
+    
+    var body: some View {
+        Circle().foregroundColor(value == nil ? .gray : value! ? .green : .red)
     }
 }

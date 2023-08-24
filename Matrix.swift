@@ -1,8 +1,8 @@
 import Foundation
 
 struct Matrix<Entry: Numeric> {
-    private var rows: Int
-    private var columns: Int
+    private let rows: Int
+    private let columns: Int
     private(set) var entries: [Entry]
     
     var T: Self {
