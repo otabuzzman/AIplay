@@ -76,7 +76,7 @@ extension Matrix {
     }
     
     static func +(lhs: Self, rhs: Self) -> Self {
-        assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "dimensions of LHS and RHS not matching")
+        assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
         var result = Self(rows: lhs.rows, columns: lhs.columns)
         for r in 0..<lhs.rows {
             for c in 0..<lhs.columns {
@@ -111,7 +111,7 @@ extension Matrix {
     }
     
     static func -(lhs: Self, rhs: Self) -> Self {
-        assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "dimensions of LHS and RHS not matching")
+        assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
         var result = Self(rows: lhs.rows, columns: lhs.columns)
         for r in 0..<lhs.rows {
             for c in 0..<lhs.columns {
@@ -142,7 +142,7 @@ extension Matrix {
     }
     
     static func *(lhs: Self, rhs: Self) -> Self {
-        assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "dimensions of LHS and RHS not matching")
+        assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
         var result = Self(rows: lhs.rows, columns: lhs.columns)
         for r in 0..<lhs.rows {
             for c in 0..<lhs.columns {
@@ -153,7 +153,7 @@ extension Matrix {
     }
     
     static func •(lhs: Self, rhs: Self) -> Self {
-        assert(lhs.columns == rhs.rows, "dimensions of LHS and RHS not matching")
+        assert(lhs.columns == rhs.rows, "LHS and RHS dimensions not matching")
         var result = Self(rows: lhs.rows, columns: rhs.columns)
         for r in 0..<lhs.rows {
             for c in 0..<rhs.columns {

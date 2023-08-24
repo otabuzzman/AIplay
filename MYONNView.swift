@@ -48,7 +48,11 @@ struct MYONNView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                 }
-                Button {} label: {
+                Button {
+                    Task { @MainActor in
+                        await viewModel.query(startWithSample: 0, count: 1000)
+                    }
+                } label: {
                     Image(systemName: "book.closed")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -104,6 +108,18 @@ extension MYONNView {
                 progressValue = Float(i) / Float(count - 1)
             }
             samplesTrained += count
+            Task { @MainActor in
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+                progressValue = 0
+            }
+        }
+        
+        func query(startWithSample index: Int, count: Int) async -> Void {
+            progressValue = 0
+            for i in 0..<count {
+                _ = query(sample: i)
+                progressValue = Float(i) / Float(count - 1)
+            }
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
                 progressValue = 0
