@@ -56,34 +56,17 @@ struct Matrix<Entry: Numeric> {
 infix operator •: MultiplicationPrecedence
 extension Matrix {
     static func +(lhs: Entry, rhs: Self) -> Self {
-        var result = Self(rows: rhs.rows, columns: rhs.columns)
-        for r in 0..<rhs.rows {
-            for c in 0..<rhs.columns {
-                result[r, c] = lhs + rhs[r, c]
-            }
-        }
-        return result
+        Self(rows: rhs.rows, columns: rhs.columns, entries: rhs.entries.map { lhs + $0 })
     }
     
     static func +(lhs: Self, rhs: Entry) -> Self {
-        var result = Self(rows: lhs.rows, columns: lhs.columns)
-        for r in 0..<lhs.rows {
-            for c in 0..<lhs.columns {
-                result[r, c] = lhs[r, c] + rhs
-            }
-        }
-        return result
+        Self(rows: lhs.rows, columns: lhs.columns, entries: lhs.entries.map { $0 + rhs })
     }
     
     static func +(lhs: Self, rhs: Self) -> Self {
         assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
-        var result = Self(rows: lhs.rows, columns: lhs.columns)
-        for r in 0..<lhs.rows {
-            for c in 0..<lhs.columns {
-                result[r, c] = lhs[r, c] + rhs[r, c]
-            }
-        }
-        return result
+        let entries = lhs.entries.indices.map { lhs.entries[$0] + rhs.entries[$0] }
+        return Self(rows: lhs.rows, columns: lhs.columns, entries: entries)
     }
     
     static func +=(lhs: inout Self, rhs: Self) {
@@ -91,65 +74,31 @@ extension Matrix {
     }
     
     static func -(lhs: Entry, rhs: Self) -> Self {
-        var result = Self(rows: rhs.rows, columns: rhs.columns)
-        for r in 0..<rhs.rows {
-            for c in 0..<rhs.columns {
-                result[r, c] = lhs - rhs[r, c]
-            }
-        }
-        return result
+        Self(rows: rhs.rows, columns: rhs.columns, entries: rhs.entries.map { lhs - $0 })
     }
     
     static func -(lhs: Self, rhs: Entry) -> Self {
-        var result = Self(rows: lhs.rows, columns: lhs.columns)
-        for r in 0..<lhs.rows {
-            for c in 0..<lhs.columns {
-                result[r, c] = lhs[r, c] - rhs
-            }
-        }
-        return result
+        Self(rows: lhs.rows, columns: lhs.columns, entries: lhs.entries.map { $0 - rhs })
     }
     
     static func -(lhs: Self, rhs: Self) -> Self {
         assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
-        var result = Self(rows: lhs.rows, columns: lhs.columns)
-        for r in 0..<lhs.rows {
-            for c in 0..<lhs.columns {
-                result[r, c] = lhs[r, c] - rhs[r, c]
-            }
-        }
-        return result
+        let entries = lhs.entries.indices.map { lhs.entries[$0] - rhs.entries[$0] }
+        return Self(rows: lhs.rows, columns: lhs.columns, entries: entries)
     }
     
     static func *(lhs: Entry, rhs: Self) -> Self {
-        var result = Self(rows: rhs.rows, columns: rhs.columns)
-        for r in 0..<rhs.rows {
-            for c in 0..<rhs.columns {
-                result[r, c] = lhs * rhs[r, c]
-            }
-        }
-        return result
+        Self(rows: rhs.rows, columns: rhs.columns, entries: rhs.entries.map { lhs * $0 })
     }
     
     static func *(lhs: Self, rhs: Entry) -> Self {
-        var result = Self(rows: lhs.rows, columns: lhs.columns)
-        for r in 0..<lhs.rows {
-            for c in 0..<lhs.columns {
-                result[r, c] = lhs[r, c] * rhs
-            }
-        }
-        return result
+        Self(rows: lhs.rows, columns: lhs.columns, entries: lhs.entries.map { $0 * rhs })
     }
     
     static func *(lhs: Self, rhs: Self) -> Self {
         assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
-        var result = Self(rows: lhs.rows, columns: lhs.columns)
-        for r in 0..<lhs.rows {
-            for c in 0..<lhs.columns {
-                result[r, c] = lhs[r, c] * rhs[r, c]
-            }
-        }
-        return result
+        let entries = lhs.entries.indices.map { lhs.entries[$0] * rhs.entries[$0] }
+        return Self(rows: lhs.rows, columns: lhs.columns, entries: entries)
     }
     
     static func •(lhs: Self, rhs: Self) -> Self {
