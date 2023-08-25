@@ -1,3 +1,4 @@
+import Accelerate
 import Foundation
 
 struct Matrix<Entry: Numeric> {
@@ -111,6 +112,57 @@ extension Matrix {
                 }
             }
         }
+        return result
+    }
+}
+
+extension Matrix where Entry == Float {
+    static func +(lhs: Entry, rhs: Self) -> Self {
+        Self(rows: rhs.rows, columns: rhs.columns, entries: vDSP.add(lhs, rhs.entries))
+    }
+    
+    static func +(lhs: Self, rhs: Entry) -> Self {
+        Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.add(rhs, lhs.entries))
+    }
+    
+    static func +(lhs: Self, rhs: Self) -> Self {
+        assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
+        return Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.add(lhs.entries, lhs.entries))
+    }
+    
+    static func +=(lhs: inout Self, rhs: Self) {
+        lhs = lhs + rhs
+    }
+    
+    static func -(lhs: Self, rhs: Self) -> Self {
+        assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
+        return Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.subtract(lhs.entries, lhs.entries))
+    }
+    
+    static func *(lhs: Entry, rhs: Self) -> Self {
+        Self(rows: rhs.rows, columns: rhs.columns, entries: vDSP.multiply(lhs, rhs.entries))
+    }
+    
+    static func *(lhs: Self, rhs: Entry) -> Self {
+        Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.multiply(rhs, lhs.entries))
+    }
+
+    static func *(lhs: Self, rhs: Self) -> Self {
+        assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
+        return Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.multiply(lhs.entries, lhs.entries))
+    }
+    
+    static func •(lhs: Self, rhs: Self) -> Self {
+        assert(lhs.columns == rhs.rows, "LHS and RHS dimensions not matching")
+        var result = Self(rows: lhs.rows, columns: rhs.columns)
+        let stride = vDSP_Stride(1)
+        vDSP_mmul(
+            lhs.entries, stride,
+            rhs.entries, stride,
+            &result.entries, stride,
+            vDSP_Length(lhs.rows),
+            vDSP_Length(rhs.columns),
+            vDSP_Length(lhs.columns))
         return result
     }
 }
