@@ -141,13 +141,31 @@ final class MatrixTests: TestCase {
             C = testCase.B * testCase.A
             AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
         }
+        [
+            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6]), B: Matrix<Float>(rows: 2, columns: 3, entries: [1, 4, 2, 5, 3, 6]), result: Matrix<Float>(rows: 2, columns: 3, entries: [1, 8, 6, 20, 15, 36])),
+            (A: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, 3]), B: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, 3]), result: Matrix<Float>(rows: 1, columns: 3, entries: [1, 4, 9])),
+            (A: Matrix<Float>(rows: 3, columns: 1, entries: [1, 2, 3]), B: Matrix<Float>(rows: 3, columns: 1, entries: [1, 2, 3]), result: Matrix<Float>(rows: 3, columns: 1, entries: [1, 4, 9]))
+        ].enumerated().forEach { (testCaseIndex, testCase) in
+            var C = testCase.A * testCase.B
+            AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
+            C = testCase.B * testCase.A
+            AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
+        }
     }
-
+    
     internal func testMatrixDotProduct() {
         [
             (A: Matrix<Int>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6]), B: Matrix<Int>(rows: 3, columns: 2, entries: [1, 4, 2, 5, 3, 6]), result: Matrix<Int>(rows: 2, columns: 2, entries: [14, 32, 32, 77])),
             (A: Matrix<Int>(rows: 1, columns: 3, entries: [1, 2, 3]), B: Matrix<Int>(rows: 3, columns: 1, entries: [1, 2, 3]), result: Matrix<Int>(rows: 1, columns: 1, entries: [14])),
             (A: Matrix<Int>(rows: 3, columns: 1, entries: [1, 2, 3]), B: Matrix<Int>(rows: 1, columns: 3, entries: [1, 2, 3]), result: Matrix<Int>(rows: 3, columns: 3, entries: [1, 2, 3, 2, 4, 6, 3, 6, 9]))
+        ].enumerated().forEach { (testCaseIndex, testCase) in
+            let C = testCase.A • testCase.B
+            AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
+        }
+        [
+            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6]), B: Matrix<Float>(rows: 3, columns: 2, entries: [1, 4, 2, 5, 3, 6]), result: Matrix<Float>(rows: 2, columns: 2, entries: [14, 32, 32, 77])),
+            (A: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, 3]), B: Matrix<Float>(rows: 3, columns: 1, entries: [1, 2, 3]), result: Matrix<Float>(rows: 1, columns: 1, entries: [14])),
+            (A: Matrix<Float>(rows: 3, columns: 1, entries: [1, 2, 3]), B: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, 3]), result: Matrix<Float>(rows: 3, columns: 3, entries: [1, 2, 3, 2, 4, 6, 3, 6, 9]))
         ].enumerated().forEach { (testCaseIndex, testCase) in
             let C = testCase.A • testCase.B
             AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
