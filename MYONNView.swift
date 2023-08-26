@@ -104,7 +104,7 @@ extension MYONNView {
             for i in 0..<count {
                 let input = (mnist.dataset[.images(.train)] as! [[UInt8]])[index + i]
                 let target = (mnist.dataset[.labels(.train)] as! [UInt8])[index + i]
-                await network.train(for: input, with: target)
+                network.train(for: input, with: target)
                 progressValue = Float(i) / Float(count - 1)
             }
             samplesTrained += count
@@ -137,7 +137,7 @@ extension MYONNView {
         func reset() -> Void {
             network = NetworkViewModel(GenericFactory.create(MYONNFactory(), nil)!)
             samplesTrained = 0
-            samplesQueried.removeAll(keepingCapacity: false)
+            samplesQueried = []
         }
     }
 }
