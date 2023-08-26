@@ -43,9 +43,12 @@ struct MYONNView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                 Button {
+                    guard
+                        let max = viewModel.mnist.dataset[.images(.test)]?.count
+                    else { return }
                     var result: Int
                     var target: Int
-                    (result, target) = viewModel.query(sample: Int.random(in: 0..<10000))
+                    (result, target) = viewModel.query(sample: Int.random(in: 0..<max))
                     queryResultCorrect = result == target
                 } label: {
                     Image(systemName: "doc")
