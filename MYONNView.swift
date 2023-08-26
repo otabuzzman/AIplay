@@ -11,7 +11,7 @@ struct MYONNView: View {
         VStack {
             HStack {
                 MNISTView(viewModel: viewModel.mnist)
-                Spacer()
+                Text("\(Float(viewModel.samplesQueried.reduce(0, +)) / Float(viewModel.samplesQueried.count))")
                 QueryState(value: queryResultCorrect)
             }
             ProgressView(value: viewModel.progressValue)
@@ -28,7 +28,11 @@ struct MYONNView: View {
                         .resizable()
                         .aspectRatio(contentMode: .fit)
                 }
-                Button {} label: {
+                Button {
+                    Task { @MainActor in
+                        await viewModel.trainAll()
+                    }
+                } label: {
                     Image(systemName: "book.closed")
                         .resizable()
                         .aspectRatio(contentMode: .fit)
@@ -50,7 +54,7 @@ struct MYONNView: View {
                 }
                 Button {
                     Task { @MainActor in
-                        await viewModel.query(startWithSample: 0, count: 1000)
+                        await viewModel.queryAll()
                     }
                 } label: {
                     Image(systemName: "book.closed")
@@ -96,8 +100,14 @@ extension MYONNView {
         
         @Published var samplesTrained = 0
         @Published var samplesQueried = [Int]()
+        @Published var epochsFinished = 0
         
         @Published var progressValue: Float = 0 // 0...1
+        
+        func trainAll() async -> Void {
+            await train(startWithSample: 0, count: mnist.dataset[.images(.train)]?.count ?? 0)
+            epochsFinished += 1
+        }
         
         func train(startWithSample index: Int, count: Int) async -> Void {
             progressValue = 0
@@ -112,6 +122,10 @@ extension MYONNView {
                 try await Task.sleep(nanoseconds: 1_000_000_000)
                 progressValue = 0
             }
+        }
+        
+        func queryAll() async -> Void {
+            await query(startWithSample: 0, count: mnist.dataset[.images(.test)]?.count ?? 0)
         }
         
         func query(startWithSample index: Int, count: Int) async -> Void {
@@ -138,6 +152,7 @@ extension MYONNView {
             network = NetworkViewModel(GenericFactory.create(MYONNFactory(), nil)!)
             samplesTrained = 0
             samplesQueried = []
+            epochsFinished = 0
         }
     }
 }
