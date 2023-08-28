@@ -1,4 +1,5 @@
 import Foundation
+import Metal
 
 struct Network {
     private var layers: [Layer]
@@ -179,4 +180,48 @@ struct NetworkFactory: AbstractFactory {
         }
         return Network(layers, alpha: config.learningRate)
     }
+}
+
+fileprivate let activationKernels = """
+#include <metal_stdlib>
+using namespace metal;
+
+kernel void sigmoid(const device float *input [[ buffer(0) ]], device float *result [[ buffer(1) ]], uint id [[ thread_position_in_grid ]]) {
+    result[id] = 1.0 / (1.0 + exp(-input[id]));
+}
+"""
+
+let device = MTLCreateSystemDefaultDevice()!
+let commandQueue = device.makeCommandQueue()!
+let activationLibrary = try device.makeLibrary(source: activationKernels, options: nil)
+
+func sigmoid(_ input: [Float]) throws -> [Float] {
+    var input = input
+    let inputCount = input.count*MemoryLayout<Float>.size
+    var result = Array<Float>(repeating: 0, count: inputCount)
+    
+    let inputBuffer = device.makeBuffer(bytes: &input, length: inputCount)
+    let resultBuffer = device.makeBuffer(bytes: &result, length: inputCount)
+    
+    let commandBuffer = commandQueue.makeCommandBuffer()!
+    let computeCommandEncoder = commandBuffer.makeComputeCommandEncoder()!
+    
+    computeCommandEncoder.setBuffer(inputBuffer, offset: 0, index: 0)
+    computeCommandEncoder.setBuffer(resultBuffer, offset: 0, index: 1)
+    
+    let function = activationLibrary.makeFunction(name: "sigmoid")!
+    let descriptor = try device.makeComputePipelineState(function: function)
+    computeCommandEncoder.setComputePipelineState(descriptor)
+    
+    let threadsPerThreadgroup = MTLSizeMake(32, 1, 1)
+    let threadGroupsCount = MTLSizeMake((inputCount + 31) / 32, 1, 1)
+    computeCommandEncoder.dispatchThreadgroups(threadGroupsCount, threadsPerThreadgroup: threadsPerThreadgroup)
+    
+    computeCommandEncoder.endEncoding()
+    
+    commandBuffer.commit()
+    commandBuffer.waitUntilCompleted()
+    
+    let typedResult = resultBuffer!.contents().bindMemory(to: Float.self, capacity: inputCount)
+    return Array(UnsafeBufferPointer<Float>(start: typedResult, count: inputCount))
 }
