@@ -32,8 +32,8 @@ enum MNISTSubset: Hashable {
         case test = "t10k"
     }
     
-    case images(_ purpose: Purpose)
-    case labels(_ purpose: Purpose)
+    case images(Purpose)
+    case labels(Purpose)
     
     var name: String {
         switch self {

@@ -74,15 +74,25 @@ extension Network: CustomCoder {
 }
 
 enum ActivationFunction: Int {
-    case identity = 1
-    case sigmoid
+    enum Context {
+        case local
+        case metal
+    }
     
-    var implementation: (Float) -> Float {
+    case identity(Context) = 1
+    case sigmoid(Context)
+    
+    var implementation: (Matrix<Float>) -> Matrix<Float> {
         switch self {
         case .identity:
             return { x in x }
-        case .sigmoid:
-            return { x in 1.0 / (1.0 + expf(-x)) }
+        case .sigmoid(let context):
+            switch xpu {
+            case .local:
+                return { x in x.map { 1.0 / (1.0 + expf(-$0)) } }
+            case .metal:
+                return { x in activationKernel(.sigmoid, x) }
+            }
         }
     }
 }
@@ -111,7 +121,7 @@ struct Layer {
     }
     
     func query(for I: Matrix<Float>) -> Matrix<Float> {
-        return (W • I).map { f.implementation($0) }
+        return f.implementation(W • I)
     }
     
     mutating func train(for I: Matrix<Float>, with E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
@@ -195,7 +205,7 @@ let device = MTLCreateSystemDefaultDevice()!
 let commandQueue = device.makeCommandQueue()!
 let activationLibrary = try device.makeLibrary(source: activationKernels, options: nil)
 
-func sigmoid(_ input: [Float]) throws -> [Float] {
+func activationKernel(_ function: ActivationFunction, _ input: [Float]) throws -> [Float] {
     var input = input
     let inputCount = input.count*MemoryLayout<Float>.size
     var result = Array<Float>(repeating: 0, count: inputCount)
@@ -209,7 +219,7 @@ func sigmoid(_ input: [Float]) throws -> [Float] {
     computeCommandEncoder.setBuffer(inputBuffer, offset: 0, index: 0)
     computeCommandEncoder.setBuffer(resultBuffer, offset: 0, index: 1)
     
-    let function = activationLibrary.makeFunction(name: "sigmoid")!
+    let function = activationLibrary.makeFunction(name: "\(function)")!
     let descriptor = try device.makeComputePipelineState(function: function)
     computeCommandEncoder.setComputePipelineState(descriptor)
     
