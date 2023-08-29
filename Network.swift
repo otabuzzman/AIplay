@@ -74,25 +74,15 @@ extension Network: CustomCoder {
 }
 
 enum ActivationFunction: Int {
-    enum Context {
-        case local
-        case metal
-    }
-    
-    case identity(Context) = 1
-    case sigmoid(Context)
+    case identity = 1
+    case sigmoid
     
     var implementation: (Matrix<Float>) -> Matrix<Float> {
         switch self {
         case .identity:
             return { x in x }
-        case .sigmoid(let context):
-            switch xpu {
-            case .local:
-                return { x in x.map { 1.0 / (1.0 + expf(-$0)) } }
-            case .metal:
-                return { x in activationKernel(.sigmoid, x) }
-            }
+        case .sigmoid:
+            return { x in x.map { 1.0 / (1.0 + expf(-$0)) } }
         }
     }
 }
@@ -202,36 +192,76 @@ kernel void sigmoid(const device float *input [[ buffer(0) ]], device float *res
 """
 
 let device = MTLCreateSystemDefaultDevice()!
-let commandQueue = device.makeCommandQueue()!
-let activationLibrary = try device.makeLibrary(source: activationKernels, options: nil)
+let queue = device.makeCommandQueue()!
+let library = try! device.makeLibrary(source: activationKernels, options: nil)
 
-func activationKernel(_ function: ActivationFunction, _ input: [Float]) throws -> [Float] {
+fileprivate enum ActivationKernelError: Error {
+    case apiException(String, Error)
+    case apiReturnedNil(String)
+}
+
+fileprivate extension ActivationKernelError {
+    var description: String {
+        switch self {
+        case .apiException(let api, let error):
+            return "Metal API \(api) threw exception \(error)"
+        case .apiReturnedNil(let api):
+            return "Metal API \(api) returned nil"
+        }
+    }
+}
+
+fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Float]) throws -> [Float] {
     var input = input
-    let inputCount = input.count*MemoryLayout<Float>.size
+    let inputCount = input.count * MemoryLayout<Float>.size
     var result = Array<Float>(repeating: 0, count: inputCount)
     
-    let inputBuffer = device.makeBuffer(bytes: &input, length: inputCount)
-    let resultBuffer = device.makeBuffer(bytes: &result, length: inputCount)
+    guard
+        let inputBuffer = device.makeBuffer(bytes: &input, length: inputCount),
+        let resultBuffer = device.makeBuffer(bytes: &result, length: inputCount)
+    else {
+        throw ActivationKernelError.apiReturnedNil("makeBuffer")
+    }
     
-    let commandBuffer = commandQueue.makeCommandBuffer()!
-    let computeCommandEncoder = commandBuffer.makeComputeCommandEncoder()!
+    guard
+        let commandBuffer = queue.makeCommandBuffer()
+    else {
+        throw ActivationKernelError.apiReturnedNil("makeCommandBuffer")
+    }
     
-    computeCommandEncoder.setBuffer(inputBuffer, offset: 0, index: 0)
-    computeCommandEncoder.setBuffer(resultBuffer, offset: 0, index: 1)
+    guard
+        let commandEncoder = commandBuffer.makeComputeCommandEncoder()
+    else {
+        throw ActivationKernelError.apiReturnedNil("makeComputeCommandEncoder")
+    }
     
-    let function = activationLibrary.makeFunction(name: "\(function)")!
-    let descriptor = try device.makeComputePipelineState(function: function)
-    computeCommandEncoder.setComputePipelineState(descriptor)
+    commandEncoder.setBuffer(inputBuffer, offset: 0, index: 0)
+    commandEncoder.setBuffer(resultBuffer, offset: 0, index: 1)
     
-    let threadsPerThreadgroup = MTLSizeMake(32, 1, 1)
-    let threadGroupsCount = MTLSizeMake((inputCount + 31) / 32, 1, 1)
-    computeCommandEncoder.dispatchThreadgroups(threadGroupsCount, threadsPerThreadgroup: threadsPerThreadgroup)
+    guard
+        let function = library.makeFunction(name: "\(function)")
+    else {
+        throw ActivationKernelError.apiReturnedNil("makeFunction")
+    }
     
-    computeCommandEncoder.endEncoding()
+    do {
+        let descriptor = try device.makeComputePipelineState(function: function)
+        commandEncoder.setComputePipelineState(descriptor)
+    } catch {
+        throw ActivationKernelError.apiException("makeComputePipelineState", error)
+    }
+    
+    let threadsWidth = 32
+    let threadsCount = MTLSizeMake(threadsWidth, 1, 1)
+    let groupsWidth = (inputCount + threadsWidth - 1) / threadsWidth
+    let groupsCount = MTLSizeMake(groupsWidth, 1, 1)
+    commandEncoder.dispatchThreadgroups(groupsCount, threadsPerThreadgroup: threadsCount)
+    
+    commandEncoder.endEncoding()
     
     commandBuffer.commit()
     commandBuffer.waitUntilCompleted()
     
-    let typedResult = resultBuffer!.contents().bindMemory(to: Float.self, capacity: inputCount)
+    let typedResult = resultBuffer.contents().bindMemory(to: Float.self, capacity: inputCount)
     return Array(UnsafeBufferPointer<Float>(start: typedResult, count: inputCount))
 }

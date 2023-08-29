@@ -169,8 +169,8 @@ let MYONNConfig: NetworkConfig = (
 struct MYONNFactory: AbstractFactory {
     func create(_ config: Never?) -> Network? {
         Network([
-            Layer(numberOfInputs: 784, numberOfPUnits: 100, activationFunction: .sigmoid(.local)),
-            Layer(numberOfInputs: 100, numberOfPUnits: 10, activationFunction: .sigmoid(.local))
+            Layer(numberOfInputs: 784, numberOfPUnits: 100, activationFunction: .sigmoid),
+            Layer(numberOfInputs: 100, numberOfPUnits: 10, activationFunction: .sigmoid)
         ], alpha: 0.3)
     }
 }
