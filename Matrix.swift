@@ -2,8 +2,8 @@ import Accelerate
 import Foundation
 
 struct Matrix<Entry: Numeric> {
-    private let rows: Int
-    private let columns: Int
+    private(set) var rows: Int
+    private(set) var columns: Int
     private(set) var entries: [Entry]
     
     var T: Self {

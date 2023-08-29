@@ -73,20 +73,6 @@ extension Network: CustomCoder {
     }
 }
 
-enum ActivationFunction: Int {
-    case identity = 1
-    case sigmoid
-    
-    var implementation: (Matrix<Float>) -> Matrix<Float> {
-        switch self {
-        case .identity:
-            return { x in x }
-        case .sigmoid:
-            return { x in x.map { 1.0 / (1.0 + expf(-$0)) } }
-        }
-    }
-}
-
 struct Layer {
     private let inputs: Int
     private let punits: Int
@@ -111,7 +97,7 @@ struct Layer {
     }
     
     func query(for I: Matrix<Float>) -> Matrix<Float> {
-        return f.implementation(W • I)
+        return f.implementation(W • I, false)
     }
     
     mutating func train(for I: Matrix<Float>, with E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
@@ -182,18 +168,47 @@ struct NetworkFactory: AbstractFactory {
     }
 }
 
-fileprivate let activationKernels = """
+enum ActivationFunction: Int {
+    case identity = 1
+    case sigmoid
+    
+    var implementation: (Matrix<Float>, Bool) -> Matrix<Float> {
+        switch self {
+        case .identity:
+            return { input, _ in input }
+        case .sigmoid:
+            return Self.sigmoid(_:tryOnGPU:)
+        }
+    }
+}
+
+extension ActivationFunction {
+    static func sigmoid(_ input: Matrix<Float>, tryOnGPU gpu: Bool) -> Matrix<Float> {
+        if gpu, let entries = try? activationKernel(.sigmoid, input.entries) {
+            return Matrix<Float>(rows: input.rows, columns: input.columns, entries: entries)
+        } else {
+            return input.map { 1.0 / (1.0 + expf(-$0)) }
+        }
+    }
+}
+
+
+
+fileprivate let activationLibrary = """
 #include <metal_stdlib>
 using namespace metal;
 
-kernel void sigmoid(const device float *input [[ buffer(0) ]], device float *result [[ buffer(1) ]], uint id [[ thread_position_in_grid ]]) {
+kernel void sigmoid(
+    const device float *input  [[ buffer(0) ]],
+          device float *result [[ buffer(1) ]],
+                  uint  id     [[ thread_position_in_grid ]]) {
     result[id] = 1.0 / (1.0 + exp(-input[id]));
 }
 """
 
-let device = MTLCreateSystemDefaultDevice()!
-let queue = device.makeCommandQueue()!
-let library = try! device.makeLibrary(source: activationKernels, options: nil)
+fileprivate let device = MTLCreateSystemDefaultDevice()
+fileprivate let queue = device?.makeCommandQueue()
+fileprivate let library = try? device?.makeLibrary(source: activationLibrary, options: nil)
 
 fileprivate enum ActivationKernelError: Error {
     case apiException(String, Error)
@@ -217,14 +232,14 @@ fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Floa
     var result = Array<Float>(repeating: 0, count: inputCount)
     
     guard
-        let inputBuffer = device.makeBuffer(bytes: &input, length: inputCount),
-        let resultBuffer = device.makeBuffer(bytes: &result, length: inputCount)
+        let inputBuffer = device?.makeBuffer(bytes: &input, length: inputCount),
+        let resultBuffer = device?.makeBuffer(bytes: &result, length: inputCount)
     else {
         throw ActivationKernelError.apiReturnedNil("makeBuffer")
     }
     
     guard
-        let commandBuffer = queue.makeCommandBuffer()
+        let commandBuffer = queue?.makeCommandBuffer()
     else {
         throw ActivationKernelError.apiReturnedNil("makeCommandBuffer")
     }
@@ -239,13 +254,13 @@ fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Floa
     commandEncoder.setBuffer(resultBuffer, offset: 0, index: 1)
     
     guard
-        let function = library.makeFunction(name: "\(function)")
+        let function = library?.makeFunction(name: "\(function)")
     else {
         throw ActivationKernelError.apiReturnedNil("makeFunction")
     }
     
     do {
-        let descriptor = try device.makeComputePipelineState(function: function)
+        let descriptor = try device!.makeComputePipelineState(function: function)
         commandEncoder.setComputePipelineState(descriptor)
     } catch {
         throw ActivationKernelError.apiException("makeComputePipelineState", error)
@@ -262,6 +277,6 @@ fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Floa
     commandBuffer.commit()
     commandBuffer.waitUntilCompleted()
     
-    let typedResult = resultBuffer.contents().bindMemory(to: Float.self, capacity: inputCount)
-    return Array(UnsafeBufferPointer<Float>(start: typedResult, count: inputCount))
+    let typedResult = resultBuffer.contents().bindMemory(to: Float.self, capacity: input.count)
+    return Array(UnsafeBufferPointer<Float>(start: typedResult, count: input.count))
 }
