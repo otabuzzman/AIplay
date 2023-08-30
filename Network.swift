@@ -97,7 +97,7 @@ struct Layer {
     }
     
     func query(for I: Matrix<Float>) -> Matrix<Float> {
-        return ActivationFunction.implementation(f, W • I, tryOnGpu: false)
+        f.implementation(W • I, tryOnGpu: false)
     }
     
     mutating func train(for I: Matrix<Float>, with E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
@@ -174,9 +174,9 @@ enum ActivationFunction: Int {
 }
 
 extension ActivationFunction {
-    static func implementation(_ f: ActivationFunction, _ input: Matrix<Float>, tryOnGpu gpu: Bool) -> Matrix<Float> {
-        let fallback = impl4Cpu[f.rawValue]
-        return gpu ? impl4Gpu(f, input) ?? fallback(input) : impl4Cpu[f.rawValue](input)
+    func implementation(_ input: Matrix<Float>, tryOnGpu gpu: Bool = false) -> Matrix<Float> {
+        let fallback = Self.impl4Cpu[self.rawValue]
+        return gpu ? Self.impl4Gpu(self, input) ?? fallback(input) : Self.impl4Cpu[self.rawValue](input)
     }
     
     private static let impl4Cpu: [(Matrix<Float>) -> Matrix<Float>] = [
