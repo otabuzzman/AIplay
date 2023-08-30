@@ -97,7 +97,7 @@ struct Layer {
     }
     
     func query(for I: Matrix<Float>) -> Matrix<Float> {
-        return f.implementation(W • I, false)
+        return ActivationFunction.implementation(f, W • I, tryOnGpu: false)
     }
     
     mutating func train(for I: Matrix<Float>, with E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
@@ -171,28 +171,28 @@ struct NetworkFactory: AbstractFactory {
 enum ActivationFunction: Int {
     case identity = 1
     case sigmoid
-    
-    var implementation: (Matrix<Float>, Bool) -> Matrix<Float> {
-        switch self {
-        case .identity:
-            return { input, _ in input }
-        case .sigmoid:
-            return Self.sigmoid(_:tryOnGPU:)
-        }
-    }
 }
 
 extension ActivationFunction {
-    static func sigmoid(_ input: Matrix<Float>, tryOnGPU gpu: Bool) -> Matrix<Float> {
-        if gpu, let entries = try? activationKernel(.sigmoid, input.entries) {
-            return Matrix<Float>(rows: input.rows, columns: input.columns, entries: entries)
-        } else {
-            return input.map { 1.0 / (1.0 + expf(-$0)) }
+    static func implementation(_ f: ActivationFunction, _ input: Matrix<Float>, tryOnGpu gpu: Bool) -> Matrix<Float> {
+        let fallback = impl4Cpu[f.rawValue]
+        return gpu ? impl4Gpu(f, input) ?? fallback(input) : impl4Cpu[f.rawValue](input)
+    }
+    
+    private static let impl4Cpu: [(Matrix<Float>) -> Matrix<Float>] = [
+        { dummy in dummy },
+        { input in input }, // identity
+        { input in input.map { 1.0 / (1.0 + expf(-$0)) } } // sigmoid
+    ]
+    
+    private static func impl4Gpu(_ f: ActivationFunction, _ input: Matrix<Float>) -> Matrix<Float>? {
+        var result: Matrix<Float>?
+        if let entries = try? activationKernel(f, input.entries) {
+            result = Matrix<Float>(rows: input.rows, columns: input.columns, entries: entries)
         }
+        return result
     }
 }
-
-
 
 fileprivate let activationLibrary = """
 #include <metal_stdlib>
