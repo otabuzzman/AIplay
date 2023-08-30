@@ -128,7 +128,9 @@ extension MYONNView {
         }
         
         func queryAll() async -> Void {
-            await query(startWithSample: 0, count: mnist.dataset[.images(.test)]?.count ?? 0)
+            let sampleCount = mnist.dataset[.images(.test)]?.count ?? 0
+            samplesQueried = [Int](repeating: .zero, count: sampleCount)
+            await query(startWithSample: 0, count: sampleCount)
         }
         
         func query(startWithSample index: Int, count: Int) async -> Void {
@@ -147,7 +149,9 @@ extension MYONNView {
             let input = (mnist.dataset[.images(.test)] as! [[UInt8]])[index]
             let target = (mnist.dataset[.labels(.test)] as! [UInt8])[index]
             let result = network.query(for: input).maxValueIndex()
-            samplesQueried.append(result == target ? 1 : 0)
+            if samplesQueried.count > index {
+                samplesQueried[index] = result == target ? 1 : 0
+            }
             return (result, Int(target))
         }
         
