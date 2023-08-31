@@ -102,6 +102,20 @@ extension Matrix {
         return Self(rows: lhs.rows, columns: lhs.columns, entries: entries)
     }
     
+    static func /(lhs: Entry, rhs: Self) -> Self {
+        rhs.map { lhs / $0 }
+    }
+    
+    static func *(lhs: Self, rhs: Entry) -> Self {
+        lhs.map { $0 / rhs }
+    }
+    
+    static func *(lhs: Self, rhs: Self) -> Self {
+        assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
+        let entries = lhs.entries.indices.map { lhs.entries[$0] / rhs.entries[$0] }
+        return Self(rows: lhs.rows, columns: lhs.columns, entries: entries)
+    }
+    
     static func •(lhs: Self, rhs: Self) -> Self {
         assert(lhs.columns == rhs.rows, "LHS and RHS dimensions not matching")
         var result = Self(rows: lhs.rows, columns: rhs.columns)
@@ -162,6 +176,19 @@ extension Matrix where Entry == Float {
     static func *(lhs: Self, rhs: Self) -> Self {
         assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
         return Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.multiply(lhs.entries, rhs.entries))
+    }
+    
+    static func /(lhs: Entry, rhs: Self) -> Self {
+        Self(rows: rhs.rows, columns: rhs.columns, entries: vDSP.divide(lhs, rhs.entries))
+    }
+    
+    static func /(lhs: Self, rhs: Entry) -> Self {
+        Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.divide(rhs, lhs.entries))
+    }
+
+    static func /(lhs: Self, rhs: Self) -> Self {
+        assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
+        return Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.divide(lhs.entries, rhs.entries))
     }
     
     static func •(lhs: Self, rhs: Self) -> Self {
