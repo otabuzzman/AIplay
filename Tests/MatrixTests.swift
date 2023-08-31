@@ -264,9 +264,9 @@ final class MatrixTests: TestCase {
             AssertEqual(testCase.result, other: B, message: "#\(testCaseIndex + 1) failed")
         }
         [
-            (s: Float(40.0), A: Matrix<Float>(rows: 2, columns: 3, entries: [2.0, 4.0, 5.0, 8.0, 10.0, 20.0]), result: Matrix<Float>(rows: 2, columns: 3, entries: [20.0, 10.0, 5.0, 8.0, 4.0, 20.])),
+            (s: Float(40.0), A: Matrix<Float>(rows: 2, columns: 3, entries: [2.0, 4.0, 5.0, 8.0, 10.0, 20.0]), result: Matrix<Float>(rows: 2, columns: 3, entries: [20.0, 10.0, 5.0, 8.0, 4.0, 20.0])),
             (s: Float(40.0), A: Matrix<Float>(rows: 2, columns: 2, entries: [8.0, 10.0, 20.0, 40.0]), result: Matrix<Float>(rows: 2, columns: 2, entries: [5.0, 4.0, 2.0, 10.0])),
-            (s: Float(-40.0), A: Matrix<Float>(rows: 2, columns: 3, entries: [2.0, 4.0, 60., 14.0, 16.0, 36.0]), result: Matrix<Float>(rows: 2, columns: 3, entries: [-20.0, -10.0, -5.0, -8.0, -4.0, -2.0])),
+            (s: Float(-40.0), A: Matrix<Float>(rows: 2, columns: 3, entries: [2.0, 4.0, 60.0, 14.0, 16.0, 36.0]), result: Matrix<Float>(rows: 2, columns: 3, entries: [-20.0, -10.0, -5.0, -8.0, -4.0, -2.0])),
             (s: Float(-40.0), A: Matrix<Float>(rows: 2, columns: 2, entries: [8.0, 10.0, 20.0, 40.0]), result: Matrix<Float>(rows: 2, columns: 2, entries: [-5.0, -4.0, -2.0, -1.0])),
         ].enumerated().forEach { (testCaseIndex, testCase) in
             var B = testCase.A / testCase.s

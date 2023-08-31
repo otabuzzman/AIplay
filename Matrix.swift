@@ -102,6 +102,22 @@ extension Matrix {
         return Self(rows: lhs.rows, columns: lhs.columns, entries: entries)
     }
     
+    static func •(lhs: Self, rhs: Self) -> Self {
+        assert(lhs.columns == rhs.rows, "LHS and RHS dimensions not matching")
+        var result = Self(rows: lhs.rows, columns: rhs.columns)
+        for r in 0..<lhs.rows {
+            for c in 0..<rhs.columns {
+                for e in 0..<rhs.rows { // or lhs.columns
+                    result[r, c] += lhs[r, e] * rhs[e, c]
+                }
+            }
+        }
+        return result
+    }
+}
+
+// https://forums.swift.org/t/whats-the-most-general-type-operator-can-be-used-on/51068
+extension Matrix where Entry == Int {
     static func /(lhs: Entry, rhs: Self) -> Self {
         rhs.map { lhs / $0 }
     }
@@ -114,19 +130,6 @@ extension Matrix {
         assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
         let entries = lhs.entries.indices.map { lhs.entries[$0] / rhs.entries[$0] }
         return Self(rows: lhs.rows, columns: lhs.columns, entries: entries)
-    }
-    
-    static func •(lhs: Self, rhs: Self) -> Self {
-        assert(lhs.columns == rhs.rows, "LHS and RHS dimensions not matching")
-        var result = Self(rows: lhs.rows, columns: rhs.columns)
-        for r in 0..<lhs.rows {
-            for c in 0..<rhs.columns {
-                for e in 0..<rhs.rows { // or lhs.columns
-                    result[r, c] += lhs[r, e] * rhs[e, c]
-                }
-            }
-        }
-        return result
     }
 }
 
