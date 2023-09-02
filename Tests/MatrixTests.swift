@@ -5,171 +5,168 @@ import Foundation
 final class MatrixTests: TestCase {
     internal func testMatrixInit() {
         [
-            (A: Matrix<Float>(), result: Matrix<Float>(rows: 1, columns: 1, entries: [0])),
-            (A: Matrix<Float>(rows: 2), result: Matrix<Float>(rows: 2, columns: 1, entries: [0, 0])),
-            (A: Matrix<Float>(columns: 3), result: Matrix<Float>(rows: 1, columns: 3, entries: [0, 0, 0])),
-            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6]), result: Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])),
+            (A: Matrix<Float>(), expect: Matrix<Float>(rows: 1, columns: 1, entries: [0])),
+            (A: Matrix<Float>(rows: 2), expect: Matrix<Float>(rows: 2, columns: 1, entries: [0, 0])),
+            (A: Matrix<Float>(columns: 3), expect: Matrix<Float>(rows: 1, columns: 3, entries: [0, 0, 0])),
+            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6]), expect: Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])),
         ].enumerated().forEach { (testCaseIndex, testCase) in
-            AssertEqual(testCase.result, other: testCase.A, message: "#\(testCaseIndex + 1) failed")
+            AssertEqual(testCase.expect, other: testCase.A, message: "#\(testCaseIndex + 1) failed")
         }
     }
     
     internal func testMatrixTransform() {
         [
-            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, -2, 3, -4, 5, -6]), result: Matrix<Float>(rows: 2, columns: 3, entries: [0, 0, 0, 0, 0, 0])),
-            (A: Matrix<Float>(rows: 2, columns: 2, entries: [-1, 2, -3, 4]), result: Matrix<Float>(rows: 2, columns: 2, entries: [0, 0, 0, 0])),
-            (A: Matrix<Float>(rows: 1, columns: 3, entries: [1, -2, 3]), result: Matrix<Float>(rows: 1, columns: 3, entries: [0, 0, 0])),
-            (A: Matrix<Float>(rows: 3, columns: 1, entries: [3, -2, 1]), result: Matrix<Float>(rows: 3, columns: 1, entries: [0, 0, 0]))
+            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, -2, 3, -4, 5, -6]), expect: Matrix<Float>(rows: 2, columns: 3, entries: [0, 0, 0, 0, 0, 0])),
+            (A: Matrix<Float>(rows: 2, columns: 2, entries: [-1, 2, -3, 4]), expect: Matrix<Float>(rows: 2, columns: 2, entries: [0, 0, 0, 0])),
+            (A: Matrix<Float>(rows: 1, columns: 3, entries: [1, -2, 3]), expect: Matrix<Float>(rows: 1, columns: 3, entries: [0, 0, 0])),
+            (A: Matrix<Float>(rows: 3, columns: 1, entries: [3, -2, 1]), expect: Matrix<Float>(rows: 3, columns: 1, entries: [0, 0, 0]))
         ].enumerated().forEach { (testCaseIndex, testCase) in
-            let A = testCase.A.map { entry in
+            let result = testCase.A.map { entry in
                  entry - entry
             }
-            AssertEqual(testCase.result, other: A, message: "#\(testCaseIndex + 1) failed")
+            AssertEqual(testCase.expect, other: result, message: "#\(testCaseIndex + 1) failed")
         }
     }
     
     internal func testMatrixTranspose() {
         [
-            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, -2, 3, -4, 5, -6]), result: Matrix<Float>(rows: 3, columns: 2, entries: [1, -4, -2, 5, 3, -6])),
-            (A: Matrix<Float>(rows: 2, columns: 2, entries: [-1, 2, -3, 4]), result: Matrix<Float>(rows: 2, columns: 2, entries: [-1, -3, 2, 4])),
-            (A: Matrix<Float>(rows: 1, columns: 3, entries: [1, -2, 3]), result: Matrix<Float>(rows: 3, columns: 1, entries: [1, -2, 3])),
-            (A: Matrix<Float>(rows: 3, columns: 1, entries: [3, -2, 1]), result: Matrix<Float>(rows: 1, columns: 3, entries: [3, -2, 1]))
+            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, -2, 3, -4, 5, -6]), expect: Matrix<Float>(rows: 3, columns: 2, entries: [1, -4, -2, 5, 3, -6])),
+            (A: Matrix<Float>(rows: 2, columns: 2, entries: [-1, 2, -3, 4]), expect: Matrix<Float>(rows: 2, columns: 2, entries: [-1, -3, 2, 4])),
+            (A: Matrix<Float>(rows: 1, columns: 3, entries: [1, -2, 3]), expect: Matrix<Float>(rows: 3, columns: 1, entries: [1, -2, 3])),
+            (A: Matrix<Float>(rows: 3, columns: 1, entries: [3, -2, 1]), expect: Matrix<Float>(rows: 1, columns: 3, entries: [3, -2, 1]))
         ].enumerated().forEach { (testCaseIndex, testCase) in
-            let B = testCase.A.T
-            AssertEqual(testCase.result, other: B, message: "#\(testCaseIndex + 1) failed")
+            let result = testCase.A.T
+            AssertEqual(testCase.expect, other: result, message: "#\(testCaseIndex + 1) failed")
         }
+    }
+    
+    internal func testScalarMatrixAddition() {
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let s: Float = 1
+        let expect = Matrix<Float>(rows: 2, columns: 3, entries: [2, 3, 4, 5, 6, 7])
+        
+        let result = s + A
+        
+        AssertEqual(expect, other: result, message: "s + A failed")
     }
     
     internal func testMatrixScalarAddition() {
-        [
-            (s: Float(2), A: Matrix<Float>(rows: 2, columns: 3, entries: [1, -2, 3, -4, 5, -6]), result: Matrix<Float>(rows: 3, columns: 2, entries: [3, 0, 5, -2, 7, -4])),
-            (s: Float(2), A: Matrix<Float>(rows: 2, columns: 2, entries: [-1, 2, -3, 4]), result: Matrix<Float>(rows: 2, columns: 2, entries: [1, 4, -1, 6])),
-            (s: Float(-2), A: Matrix<Float>(rows: 1, columns: 3, entries: [1, -2, 3]), result: Matrix<Float>(rows: 3, columns: 1, entries: [-1, -4, 1])),
-            (s: Float(-2), A: Matrix<Float>(rows: 3, columns: 1, entries: [3, -2, 1]), result: Matrix<Float>(rows: 1, columns: 3, entries: [1, -4, -1]))
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            var B = testCase.s + testCase.A
-            AssertEqual(testCase.result, other: B, message: "#\(testCaseIndex + 1) failed")
-            B = testCase.A + testCase.s
-            AssertEqual(testCase.result, other: B, message: "#\(testCaseIndex + 1) failed")
-        }
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let s: Float = 1
+        let expect = Matrix<Float>(rows: 2, columns: 3, entries: [2, 3, 4, 5, 6, 7])
+        
+        let result = A + s
+        
+        AssertEqual(expect, other: result, message: "A + s failed")
     }
     
     internal func testMatrixMatrixAddition() {
-        [
-            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6]), B: Matrix<Float>(rows: 2, columns: 3, entries: [1, 4, 2, 5, 3, 6]), result: Matrix<Float>(rows: 2, columns: 3, entries: [2, 4, 6, 8, 10, 12])),
-            (A: Matrix<Float>(rows: 2, columns: 2, entries: [1, 2, 3, 4]), B: Matrix<Float>(rows: 2, columns: 2, entries: [1, 2, 3, 4]), result: Matrix<Float>(rows: 2, columns: 3, entries: [2, 4, 6, 8])),
-            (A: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, 3]), B: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, 3]), result: Matrix<Float>(rows: 1, columns: 3, entries: [2, 4, 6])),
-            (A: Matrix<Float>(rows: 3, columns: 1, entries: [1, 2, 3]), B: Matrix<Float>(rows: 3, columns: 1, entries: [1, 2, 3]), result: Matrix<Float>(rows: 3, columns: 1, entries: [2, 4, 6]))
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            var C = testCase.A + testCase.B
-            AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
-            C = testCase.B + testCase.A
-            AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
-        }
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let B = Matrix<Float>(rows: 2, columns: 3, entries: [6, 5, 4, 3, 2, 1])
+        let expect = Matrix<Float>(rows: 2, columns: 3, entries: [7, 7, 7, 7, 7, 7])
+        
+        let result = A + B
+        
+        AssertEqual(expect, other: result, message: "A + B failed")
     }
     
     internal func testScalarMatrixSubtraction() {
-        [
-            (s: Float(2), A: Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6]), result: Matrix<Float>(rows: 2, columns: 3, entries: [1, 0, -1, -2, -3, -4])),
-            (s: Float(2), A: Matrix<Float>(rows: 2, columns: 2, entries: [1, 2, 3, 4]), result: Matrix<Float>(rows: 2, columns: 2, entries: [1, 0, -1, -2])),
-            (s: Float(-2), A: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, -3]), result: Matrix<Float>(rows: 1, columns: 3, entries: [-3, -4, 1])),
-            (s: Float(-2), A: Matrix<Float>(rows: 3, columns: 1, entries: [-1, 2, 3]), result: Matrix<Float>(rows: 3, columns: 1, entries: [-1, -4, -5]))
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            let B = testCase.s - testCase.A
-            AssertEqual(testCase.result, other: B, message: "#\(testCaseIndex + 1) failed")
-        }
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let s: Float = 1
+        let R = Matrix<Float>(rows: 2, columns: 3, entries: [0, -1, -2, -3, -4, -5])
+        
+        let result = s - A
+        
+        AssertEqual(result, other: R, message: "s - A failed")
     }
     
     internal func testMatrixScalarSubtraction() {
-        [
-            (s: Float(2), A: Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6]), result: Matrix<Float>(rows: 2, columns: 3, entries: [-1, 0, 1, 2, 3, 4])),
-            (s: Float(2), A: Matrix<Float>(rows: 2, columns: 2, entries: [1, 2, 3, 4]), result: Matrix<Float>(rows: 2, columns: 2, entries: [-1, 0, 1, 2])),
-            (s: Float(-2), A: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, -3]), result: Matrix<Float>(rows: 1, columns: 3, entries: [3, 4, -1])),
-            (s: Float(-2), A: Matrix<Float>(rows: 3, columns: 1, entries: [-1, 2, 3]), result: Matrix<Float>(rows: 3, columns: 1, entries: [1, 4, 5]))
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            let B = testCase.A - testCase.s
-            AssertEqual(testCase.result, other: B, message: "#\(testCaseIndex + 1) failed")
-        }
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let s: Float = 1
+        let expect = Matrix<Float>(rows: 2, columns: 3, entries: [0, 1, 2, 3, 4, 5])
+        
+        let result = A - s
+        
+        AssertEqual(expect, other: result, message: "A - s failed")
     }
     
     internal func testMatrixMatrixSubtraction() {
-        [
-            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, -2, 3, -4, 5, -6]), B: Matrix<Float>(rows: 2, columns: 3, entries: [1, -2, 3, -4, 5, -6]), result: Matrix<Float>(rows: 2, columns: 3, entries: [0, 0, 0, 0, 0, 0])),
-            (A: Matrix<Float>(rows: 2, columns: 2, entries: [-1, 2, -3, 4]), B: Matrix<Float>(rows: 2, columns: 2, entries: [-1, 2, -3, 4]), result: Matrix<Float>(rows: 2, columns: 3, entries: [0, 0, 0, 0])),
-            (A: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, -3]), B: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, -3]), result: Matrix<Float>(rows: 1, columns: 3, entries: [0, 0, 0])),
-            (A: Matrix<Float>(rows: 3, columns: 1, entries: [-1, 2, 3]), B: Matrix<Float>(rows: 3, columns: 1, entries: [-1, 2, 3]), result: Matrix<Float>(rows: 3, columns: 1, entries: [0, 0, 0]))
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            let C = testCase.A - testCase.B
-            AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
-        }
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let B = Matrix<Float>(rows: 2, columns: 3, entries: [6, 5, 4, 3, 2, 1])
+        let expect = Matrix<Float>(rows: 2, columns: 3, entries: [-5, -3, -1, 1, 3, 5])
+        
+        let result = A - B
+        
+        AssertEqual(expect, other: result, message: "A - B failed")
+    }
+    
+    internal func testScalarMatrixMultiplication() {
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let s: Float = 2
+        let expect = Matrix<Float>(rows: 2, columns: 3, entries: [2, 4, 6, 8, 10, 12])
+        
+        let result = s * A
+        
+        AssertEqual(expect, other: result, message: "s * A failed")
     }
     
     internal func testMatrixScalarMultiplication() {
-        [
-            (s: Float(2), A: Matrix<Float>(rows: 2, columns: 3, entries: [1, -2, 3, -4, 5, -6]), result: Matrix<Float>(rows: 2, columns: 3, entries: [2, -4, 6, -8, 10, -12])),
-            (s: Float(2), A: Matrix<Float>(rows: 2, columns: 2, entries: [-1, 2, -3, 4]), result: Matrix<Float>(rows: 2, columns: 2, entries: [-2, 4, -6, 8])),
-            (s: Float(-2), A: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, -3]), result: Matrix<Float>(rows: 1, columns: 3, entries: [-2, -4, 6])),
-            (s: Float(-2), A: Matrix<Float>(rows: 3, columns: 1, entries: [-1, 2, 3]), result: Matrix<Float>(rows: 3, columns: 1, entries: [2, -4, -6]))
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            var B = testCase.s * testCase.A
-            AssertEqual(testCase.result, other: B, message: "#\(testCaseIndex + 1) failed")
-            B = testCase.A * testCase.s
-            AssertEqual(testCase.result, other: B, message: "#\(testCaseIndex + 1) failed")
-        }
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let s: Float = 2
+        let expect = Matrix<Float>(rows: 2, columns: 3, entries: [2, 4, 6, 8, 10, 12])
+        
+        let result = A * s
+        
+        AssertEqual(expect, other: result, message: "A * s failed")
     }
     
     internal func testMatrixMatrixMultiplication() {
-        [
-            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, -2, 3, -4, 5, -6]), B: Matrix<Float>(rows: 2, columns: 3, entries: [1, -2, 3, -4, 5, -6]), result: Matrix<Float>(rows: 2, columns: 3, entries: [1, 4, 9, 16, 25, 36])),
-            (A: Matrix<Float>(rows: 2, columns: 2, entries: [-1, 2, -3, 4]), B: Matrix<Float>(rows: 2, columns: 2, entries: [-1, 2, -3, 4]), result: Matrix<Float>(rows: 2, columns: 3, entries: [1, 4, 9, 16])),
-            (A: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, -3]), B: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, -3]), result: Matrix<Float>(rows: 1, columns: 3, entries: [1, 4, 9])),
-            (A: Matrix<Float>(rows: 3, columns: 1, entries: [-1, 2, 3]), B: Matrix<Float>(rows: 3, columns: 1, entries: [-1, 2, 3]), result: Matrix<Float>(rows: 3, columns: 1, entries: [1, 4, 9]))
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            var C = testCase.A * testCase.B
-            AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
-            C = testCase.B * testCase.A
-            AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
-        }
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let B = Matrix<Float>(rows: 2, columns: 3, entries: [6, 5, 4, 3, 2, 1])
+        let expect = Matrix<Float>(rows: 2, columns: 3, entries: [6, 10, 12, 12, 10, 6])
+        
+        let result = A * B
+        
+        AssertEqual(expect, other: result, message: "A * B failed")
     }
     
     internal func testScalarMatrixDivision() {
-        [
-            (s: Float(6), A: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, -3]), result: Matrix<Float>(rows: 1, columns: 3, entries: [6, 3, -2])),
-            (s: Float(-6), A: Matrix<Float>(rows: 3, columns: 1, entries: [-1, 2, 3]), result: Matrix<Float>(rows: 3, columns: 1, entries: [6, -3, -2]))
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            let B = testCase.s / testCase.A
-            AssertEqual(testCase.result, other: B, message: "#\(testCaseIndex + 1) failed")
-        }
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let s: Float = 60
+        let expect = Matrix<Float>(rows: 2, columns: 3, entries: [60, 30, 20, 15, 12, 10])
+        
+        let result = s / A
+        
+        AssertEqual(expect, other: result, message: "s / A failed")
     }
     
     internal func testMatrixScalarDivision() {
-        [
-            (s: Float(6), A: Matrix<Float>(rows: 1, columns: 3, entries: [6, 12, -18]), result: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, -3])),
-            (s: Float(-6), A: Matrix<Float>(rows: 3, columns: 1, entries: [-6, 12, 18]), result: Matrix<Float>(rows: 3, columns: 1, entries: [1, -2, -3]))
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            let B = testCase.A / testCase.s
-            AssertEqual(testCase.result, other: B, message: "#\(testCaseIndex + 1) failed")
-        }
+        let C = Matrix<Float>(rows: 2, columns: 3, entries: [10, 20, 30, 40, 50, 60])
+        let s: Float = 2
+        let expect = Matrix<Float>(rows: 2, columns: 3, entries: [5, 10, 15, 20, 25, 30])
+        
+        let result = C / s
+        
+        AssertEqual(expect, other: result, message: "C / s failed")
     }
     
     internal func testMatrixMatrixDivision() {
-        [
-            (A: Matrix<Float>(rows: 1, columns: 3, entries: [6, 12, -18]), B: Matrix<Float>(rows: 1, columns: 3, entries: [-2, 4, 6]), result: Matrix<Float>(rows: 1, columns: 3, entries: [-3, 3, -3])),
-            (A: Matrix<Float>(rows: 3, columns: 1, entries: [-6, 12, 18]), B: Matrix<Float>(rows: 3, columns: 1, entries: [2, 4, -6]), result: Matrix<Float>(rows: 3, columns: 1, entries: [-3, 3, -3]))
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            let C = testCase.A / testCase.B
-            AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
-        }
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let C = Matrix<Float>(rows: 2, columns: 3, entries: [10, 20, 30, 40, 50, 60])
+        let expect = Matrix<Float>(rows: 2, columns: 3, entries: [10, 10, 10, 10, 10, 10])
+        
+        let result = C / A
+        
+        AssertEqual(expect, other: result, message: "C / A failed")
     }
     
     internal func testMatrixDotProduct() {
-        [
-            (A: Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6]), B: Matrix<Float>(rows: 3, columns: 2, entries: [1, 4, 2, 5, 3, 6]), result: Matrix<Float>(rows: 2, columns: 2, entries: [14, 32, 32, 77])),
-            (A: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, 3]), B: Matrix<Float>(rows: 3, columns: 1, entries: [1, 2, 3]), result: Matrix<Float>(rows: 1, columns: 1, entries: [14])),
-            (A: Matrix<Float>(rows: 3, columns: 1, entries: [1, 2, 3]), B: Matrix<Float>(rows: 1, columns: 3, entries: [1, 2, 3]), result: Matrix<Float>(rows: 3, columns: 3, entries: [1, 2, 3, 2, 4, 6, 3, 6, 9]))
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            let C = testCase.A • testCase.B
-            AssertEqual(testCase.result, other: C, message: "#\(testCaseIndex + 1) failed")
-        }
+        let A = Matrix<Float>(rows: 2, columns: 3, entries: [1, 2, 3, 4, 5, 6])
+        let B = Matrix<Float>(rows: 3, columns: 2, entries: [1, 4, 2, 5, 3, 6])
+        let expect = Matrix<Float>(rows: 2, columns: 2, entries: [14, 32, 32, 77])
+        
+        let result = A • B
+        
+        AssertEqual(expect, other: result, message: "A • B failed")
     }
 }

@@ -183,7 +183,7 @@ extension Matrix where Entry == Float {
     }
     
     static func /(lhs: Self, rhs: Entry) -> Self {
-        Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.divide(rhs, lhs.entries))
+        Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.divide(lhs.entries, rhs))
     }
 
     static func /(lhs: Self, rhs: Self) -> Self {
