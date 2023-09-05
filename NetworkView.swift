@@ -137,6 +137,13 @@ class NetworkViewModel: ObservableObject {
         return network.query(for: input)
     }
     
+    func query(for I: [[UInt8]]) -> [Matrix<Float>] {
+        let input = I.map { Matrix<Float>(rows: $0.count, columns: 1, entries: $0.map({ Float($0) }))
+                .map { ($0 / 255.0 * 0.99) + 0.01 }
+        }
+        return network.query(for: input)
+    }
+    
     func train(for I: [UInt8], with T: UInt8) -> Void {
         let input = Matrix<Float>(rows: I.count, columns: 1, entries: I.map({ Float($0) }))
             .map { ($0 / 255.0 * 0.99) + 0.01 }
@@ -144,5 +151,19 @@ class NetworkViewModel: ObservableObject {
             .map { _ in 0.01 }
         target[Int(T), 0] = 0.99
         network.train(for: input, with: target)
+    }
+    
+    func train(for I: [[UInt8]], with T: [UInt8]) async -> Void {
+        let input = I.map {
+            Matrix<Float>(rows: $0.count, columns: 1, entries: $0.map({ Float($0) }))
+                .map { ($0 / 255.0 * 0.99) + 0.01 }
+        }
+        let target = T.map {
+            var target = Matrix<Float>(rows: 10, columns: 1)
+                .map { _ in 0.01 }
+            target[Int($0), 0] = 0.99
+            return target
+        }
+        await network.train(for: input, with: target)
     }
 }

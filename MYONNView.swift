@@ -11,7 +11,10 @@ struct MYONNView: View {
         VStack {
             HStack {
                 MNISTView(viewModel: viewModel.mnist)
-                Text("\(Float(viewModel.samplesQueried.reduce(0, +)) / Float(viewModel.samplesQueried.count))")
+                VStack {
+                    Text("\(viewModel.performance)")
+                    Text("\(viewModel.trainingDuration)")
+                }
                 QueryState(value: queryResultCorrect)
             }
             ProgressView(value: viewModel.progressValue)
@@ -21,7 +24,8 @@ struct MYONNView: View {
                     .aspectRatio(contentMode: .fit)
                 Button {
                     Task { @MainActor in
-                        await viewModel.train(startWithSample: viewModel.samplesTrained, count: 100)
+                        await viewModel.train(startWithBatch: viewModel.samplesTrained, count: 1)
+                        // await viewModel.train(startWithSample: viewModel.samplesTrained, count: viewModel.miniBatchSize)
                     }
                 } label: {
                     Image(systemName: "doc.on.doc")
@@ -101,25 +105,54 @@ extension MYONNView {
         // Network factory with MYONN configuration
         // var network = NetworkViewModel(GenericFactory.create(NetworkFactory(), MYONNConfig)!)
         
-        @Published var samplesTrained = 0
-        @Published var samplesQueried = [Int]()
+        @Published var samplesTrained = 0  
+        private var samplesQueried = [Int]()
+        var miniBatchSize = 100
         @Published var epochsFinished = 0
+        @Published var performance: Float = 0
         
         @Published var progressValue: Float = 0 // 0...1
+        @Published var trainingDuration: TimeInterval = 0
         
         func trainAll() async -> Void {
-            await train(startWithSample: 0, count: mnist.dataset[.images(.train)]?.count ?? 0)
+            await train(startWithBatch: 0, count: (mnist.dataset[.images(.train)]?.count ?? 0) / miniBatchSize)
+            // await train(startWithSample: 0, count: mnist.dataset[.images(.train)]?.count ?? 0)
             epochsFinished += 1
         }
         
         func train(startWithSample index: Int, count: Int) async -> Void {
             progressValue = 0
+            trainingDuration = 0
+            let t0 = Date.timeIntervalSinceReferenceDate
             for i in 0..<count {
                 let input = (mnist.dataset[.images(.train)] as! [[UInt8]])[index + i]
                 let target = (mnist.dataset[.labels(.train)] as! [UInt8])[index + i]
                 network.train(for: input, with: target)
-                progressValue = Float(i) / Float(count - 1)
+                progressValue = Float(i + 1) / Float(count)
             }
+            let t1 = Date.timeIntervalSinceReferenceDate
+            trainingDuration = t1 - t0
+            samplesTrained += count
+            Task { @MainActor in
+                try await Task.sleep(nanoseconds: 1_000_000_000)
+                progressValue = 0
+            }
+        }
+        
+        func train(startWithBatch index: Int, count: Int) async -> Void {
+            progressValue = 0
+            trainingDuration = 0
+            let t0 = Date.timeIntervalSinceReferenceDate
+            for i in 0..<count {
+                let a = (i + index) * miniBatchSize
+                let o = a + miniBatchSize
+                let input = (mnist.dataset[.images(.train)] as! [[UInt8]])[a..<o].map { $0 }
+                let target = (mnist.dataset[.labels(.train)] as! [UInt8])[a..<o].map { $0 }
+                await network.train(for: input, with: target)
+                progressValue = Float((i + 1) * miniBatchSize) / Float(count * miniBatchSize)
+            }
+            let t1 = Date.timeIntervalSinceReferenceDate
+            trainingDuration = t1 - t0
             samplesTrained += count
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
@@ -131,6 +164,7 @@ extension MYONNView {
             let sampleCount = mnist.dataset[.images(.test)]?.count ?? 0
             samplesQueried = [Int](repeating: .zero, count: sampleCount)
             await query(startWithSample: 0, count: sampleCount)
+            performance = samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
         }
         
         func query(startWithSample index: Int, count: Int) async -> Void {
@@ -158,8 +192,8 @@ extension MYONNView {
         func reset() -> Void {
             network = NetworkViewModel(GenericFactory.create(MYONNFactory(), nil)!)
             samplesTrained = 0
-            samplesQueried = []
             epochsFinished = 0
+            performance = 0
         }
     }
 }

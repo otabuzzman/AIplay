@@ -52,7 +52,7 @@ struct AppIcon: View {
 @main
 struct AIplay: App {
     init() {
-        PlaygroundTester.PlaygroundTesterConfiguration.isTesting = true
+        PlaygroundTester.PlaygroundTesterConfiguration.isTesting = false
     }
     
     var body: some Scene {
