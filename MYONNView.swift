@@ -146,8 +146,8 @@ extension MYONNView {
             for i in 0..<count {
                 let a = (i + index) * miniBatchSize
                 let o = a + miniBatchSize
-                let input = (mnist.dataset[.images(.train)] as! [[UInt8]])[a..<o].map { $0 }
-                let target = (mnist.dataset[.labels(.train)] as! [UInt8])[a..<o].map { $0 }
+                let input = (mnist.dataset[.images(.train)] as! [[UInt8]])[a..<o]
+                let target = (mnist.dataset[.labels(.train)] as! [UInt8])[a..<o]
                 await network.train(for: input, with: target)
                 progressValue = Float((i + 1) * miniBatchSize) / Float(count * miniBatchSize)
             }
@@ -194,6 +194,7 @@ extension MYONNView {
             samplesTrained = 0
             epochsFinished = 0
             performance = 0
+            trainingDuration = 0
         }
     }
 }
