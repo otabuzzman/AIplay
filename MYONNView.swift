@@ -17,7 +17,7 @@ struct MYONNView: View {
                 }
                 QueryState(value: queryResultCorrect)
             }
-            ProgressView(value: viewModel.progressValue)
+            ProgressView(value: viewModel.trainingProgress)
             HStack {
                 Image(systemName: "figure.strengthtraining.traditional")
                     .resizable()
@@ -105,13 +105,14 @@ extension MYONNView {
         // Network factory with MYONN configuration
         // var network = NetworkViewModel(GenericFactory.create(NetworkFactory(), MYONNConfig)!)
         
-        @Published var samplesTrained = 0  
+        var samplesTrained = 0  
         private var samplesQueried = [Int]()
+        var batchesTrained = 0
         var miniBatchSize = 100
         @Published var epochsFinished = 0
         @Published var performance: Float = 0
         
-        @Published var progressValue: Float = 0 // 0...1
+        @Published var trainingProgress: Float = 0 // 0...1
         @Published var trainingDuration: TimeInterval = 0
         
         func trainAll() async -> Void {
@@ -121,26 +122,26 @@ extension MYONNView {
         }
         
         func train(startWithSample index: Int, count: Int) async -> Void {
-            progressValue = 0
+            trainingProgress = 0
             trainingDuration = 0
             let t0 = Date.timeIntervalSinceReferenceDate
             for i in 0..<count {
                 let input = (mnist.dataset[.images(.train)] as! [[UInt8]])[index + i]
                 let target = (mnist.dataset[.labels(.train)] as! [UInt8])[index + i]
                 network.train(for: input, with: target)
-                progressValue = Float(i + 1) / Float(count)
+                trainingProgress = Float(i + 1) / Float(count)
             }
             let t1 = Date.timeIntervalSinceReferenceDate
             trainingDuration = t1 - t0
             samplesTrained += count
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
-                progressValue = 0
+                trainingProgress = 0
             }
         }
         
         func train(startWithBatch index: Int, count: Int) async -> Void {
-            progressValue = 0
+            trainingProgress = 0
             trainingDuration = 0
             let t0 = Date.timeIntervalSinceReferenceDate
             for i in 0..<count {
@@ -149,14 +150,15 @@ extension MYONNView {
                 let input = (mnist.dataset[.images(.train)] as! [[UInt8]])[a..<o]
                 let target = (mnist.dataset[.labels(.train)] as! [UInt8])[a..<o]
                 await network.train(for: input, with: target)
-                progressValue = Float((i + 1) * miniBatchSize) / Float(count * miniBatchSize)
+                trainingProgress = Float((i + 1)) / Float(count)
             }
             let t1 = Date.timeIntervalSinceReferenceDate
             trainingDuration = t1 - t0
-            samplesTrained += count
+            batchesTrained += count
+            samplesTrained += count * miniBatchSize
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
-                progressValue = 0
+                trainingProgress = 0
             }
         }
         
@@ -168,14 +170,14 @@ extension MYONNView {
         }
         
         func query(startWithSample index: Int, count: Int) async -> Void {
-            progressValue = 0
+            trainingProgress = 0
             for i in 0..<count {
                 _ = query(sample: i)
-                progressValue = Float(i) / Float(count - 1)
+                trainingProgress = Float(i) / Float(count - 1)
             }
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
-                progressValue = 0
+                trainingProgress = 0
             }
         }
         
@@ -192,6 +194,7 @@ extension MYONNView {
         func reset() -> Void {
             network = NetworkViewModel(GenericFactory.create(MYONNFactory(), nil)!)
             samplesTrained = 0
+            batchesTrained = 0
             epochsFinished = 0
             performance = 0
             trainingDuration = 0
