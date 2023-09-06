@@ -148,22 +148,6 @@ extension Matrix where Entry == Float {
         return Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.add(lhs.entries, rhs.entries))
     }
     
-    static func +=(lhs: inout Self, rhs: Self) {
-        lhs = lhs + rhs
-    }
-    
-    static prefix func -(matrix: Self) -> Self {
-        matrix.map { -$0 }
-    }
-    
-    static func -(lhs: Entry, rhs: Self) -> Self {
-        -rhs + lhs
-    }
-    
-    static func -(lhs: Self, rhs: Entry) -> Self {
-        lhs + -rhs
-    }
-    
     static func -(lhs: Self, rhs: Self) -> Self {
         assert(lhs.rows == rhs.rows && lhs.columns == rhs.columns, "LHS and RHS dimensions not matching")
         return Self(rows: lhs.rows, columns: lhs.columns, entries: vDSP.subtract(lhs.entries, rhs.entries))

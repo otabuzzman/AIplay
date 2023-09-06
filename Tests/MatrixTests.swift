@@ -65,7 +65,12 @@ final class MatrixTests: TestCase {
         let B = Matrix<Float>(rows: 2, columns: 3, entries: [6, 5, 4, 3, 2, 1])
         let expect = Matrix<Float>(rows: 2, columns: 3, entries: [7, 7, 7, 7, 7, 7])
         
-        let result = A + B
+        var result = A + B
+        
+        AssertEqual(expect, other: result, message: "A + B failed")
+        
+        result = A
+        result += B
         
         AssertEqual(expect, other: result, message: "A + B failed")
     }
