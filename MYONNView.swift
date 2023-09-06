@@ -24,7 +24,7 @@ struct MYONNView: View {
                     .aspectRatio(contentMode: .fit)
                 Button {
                     Task { @MainActor in
-                        await viewModel.train(startWithBatch: viewModel.samplesTrained, count: 1)
+                        await viewModel.train(startWithBatch: viewModel.batchesTrained, count: 1)
                         // await viewModel.train(startWithSample: viewModel.samplesTrained, count: viewModel.miniBatchSize)
                     }
                 } label: {
@@ -105,10 +105,10 @@ extension MYONNView {
         // Network factory with MYONN configuration
         // var network = NetworkViewModel(GenericFactory.create(NetworkFactory(), MYONNConfig)!)
         
-        var samplesTrained = 0  
+        @Published var samplesTrained = 0  
         private var samplesQueried = [Int]()
-        var batchesTrained = 0
-        var miniBatchSize = 100
+        @Published var batchesTrained = 0
+        let miniBatchSize = 100
         @Published var epochsFinished = 0
         @Published var performance: Float = 0
         

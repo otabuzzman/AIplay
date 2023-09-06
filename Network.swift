@@ -141,7 +141,7 @@ struct Layer {
             for i in 0..<I.count {
                 let o = query(for: I[i]) // this layer's prediction (o) for input (I[i])
                 batch.addTask {
-                    return (E[i] * o * (1.0 - o)) • I[i].T // this input's (I[i]) gradient
+                    (E[i] * o * (1.0 - o)) • I[i].T // this input's (I[i]) gradient
                 }
             }
             var g = await batch.next()! // first gradient
