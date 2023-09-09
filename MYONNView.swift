@@ -24,8 +24,13 @@ struct MYONNView: View {
                     .aspectRatio(contentMode: .fit)
                 Button {
                     Task { @MainActor in
-                        await viewModel.train(startWithBatch: viewModel.batchesTrained, count: 1)
-                        // await viewModel.train(startWithSample: viewModel.samplesTrained, count: viewModel.miniBatchSize)
+                        if viewModel.miniBatchSize == 1 {
+                            await viewModel.train(
+                                startWithBatch: viewModel.batchesTrained, count: 1)
+                        } else {
+                            await viewModel.train(
+                                startWithSample: viewModel.samplesTrained, count: viewModel.miniBatchSize)
+                        }
                     }
                 } label: {
                     Image(systemName: "doc.on.doc")
@@ -99,7 +104,7 @@ struct MYONNView: View {
 
 extension MYONNView {
     class MYONNViewModel: ObservableObject {
-        var mnist = MNISTViewModel(in: getAppFolder())
+        var mnist = MNISTDataset(in: getAppFolder())
         // specialized MYONN factory
         var network = NetworkViewModel(GenericFactory.create(MYONNFactory(), nil)!)
         // Network factory with MYONN configuration
@@ -116,8 +121,14 @@ extension MYONNView {
         @Published var trainingDuration: TimeInterval = 0
         
         func trainAll() async -> Void {
-            await train(startWithBatch: 0, count: (mnist.dataset[.images(.train)]?.count ?? 0) / miniBatchSize)
-            // await train(startWithSample: 0, count: mnist.dataset[.images(.train)]?.count ?? 0)
+            guard
+                let count = mnist.dataset[.images(.train)]?.count
+            else { return }
+            if miniBatchSize == 1 {
+                await train(startWithSample: 0, count: count)
+            } else {
+                await train(startWithBatch: 0, count: count / miniBatchSize)
+            }
             epochsFinished += 1
         }
         
@@ -204,7 +215,7 @@ extension MYONNView {
 
 // NYONN configuration for Network factory
 let MYONNConfig: NetworkConfig = (
-    layersWithSizes: [784, 100, 10], activationFunctions: [.sigmoid, .sigmoid], learningRate: 0.5
+    layersWithSizes: [784, 100, 10], activationFunctions: [.sigmoid, .sigmoid], learningRate: 0.3
 )
 
 // specialized NYONN factory

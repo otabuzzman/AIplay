@@ -69,7 +69,7 @@ struct NetworkView: View {
                             self.error = .nndxDecode(url[0])
                             return
                         }
-                        viewModel.set(network: network)
+                        viewModel.network = network
                     } catch {
                         self.error = .nndxRead(url[0], error)
                     }
@@ -121,13 +121,9 @@ struct NetworkExchangeDocument: FileDocument {
 }
 
 class NetworkViewModel: ObservableObject {
-    private(set) var network: Network!
+    var network: Network!
     
     init(_ network: Network) {
-        set(network: network)
-    }
-    
-    func set(network: Network) {
         self.network = network
     }
     
