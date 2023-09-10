@@ -25,11 +25,11 @@ struct MYONNView: View {
                 Button {
                     Task { @MainActor in
                         if viewModel.miniBatchSize == 1 {
-                            await viewModel.train(
-                                startWithBatch: viewModel.batchesTrained, count: 1)
+                            // SGD with arbitrary number of samples
+                            await viewModel.train(startWithSample: viewModel.samplesTrained, count: 100)
                         } else {
-                            await viewModel.train(
-                                startWithSample: viewModel.samplesTrained, count: viewModel.miniBatchSize)
+                            // mini-batch GD with size as configured
+                            await viewModel.train(startWithBatch: viewModel.batchesTrained, count: 1)
                         }
                     }
                 } label: {
@@ -104,7 +104,7 @@ struct MYONNView: View {
 
 extension MYONNView {
     class MYONNViewModel: ObservableObject {
-        var mnist = MNISTDataset(in: getAppFolder())
+        var mnist = MNISTViewModel(in: getAppFolder())
         // specialized MYONN factory
         var network = NetworkViewModel(GenericFactory.create(MYONNFactory(), nil)!)
         // Network factory with MYONN configuration
@@ -113,7 +113,7 @@ extension MYONNView {
         @Published var samplesTrained = 0  
         private var samplesQueried = [Int]()
         @Published var batchesTrained = 0
-        let miniBatchSize = 100
+        let miniBatchSize = 30
         @Published var epochsFinished = 0
         @Published var performance: Float = 0
         

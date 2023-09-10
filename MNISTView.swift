@@ -4,7 +4,7 @@ import Foundation
 import DataCompression
 
 struct MNISTView: View {
-    @ObservedObject var viewModel: MNISTDataset
+    @ObservedObject var viewModel: MNISTViewModel
     
     var body: some View {
         HStack {
@@ -83,7 +83,7 @@ extension MNISTError {
     }
 }
 
-class MNISTDataset: ObservableObject {
+class MNISTViewModel: ObservableObject {
     private var lock = NSLock()
     
     @Published private(set) var dataset: [MNISTSubset : [MNISTEntity]] = [:]
