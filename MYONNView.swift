@@ -237,11 +237,3 @@ extension Matrix where Entry: Comparable {
         entries.indices.max(by: { entries[$0] < entries[$1] })! // probably save to force unwrap
     }
 }
-
-struct QueryState: View {
-    var value: Bool?
-    
-    var body: some View {
-        Circle().foregroundColor(value == nil ? .gray : value! ? .green : .red)
-    }
-}
