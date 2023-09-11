@@ -24,18 +24,28 @@ extension NetworkViewError {
 }
 
 struct NetworkView: View {
-	var dataset: MNISTViewModel
+    var config: NetworkConfig
+    var miniBatchSize: Int
     
-    @ObservedObject private var viewModel: NetworkViewModel(MYONNControl.network)
+    @ObservedObject private var viewModel: NetworkViewModel(GenericFactory.create(NetworkFactory(), config)!)
     
     @State private var error: NetworkViewError? = nil
     
     @State private var isExporting = false
     @State private var isImporting = false
-   
+    
     @State private var queryResultCorrect: Bool?
     
     var body: some View {
+        HStack {
+            VStack {
+                Circle().foregroundColor(viewModel.dataset.state[.images(.train)]?.color)
+                Circle().foregroundColor(viewModel.dataset.state[.labels(.train)]?.color)
+            }
+            VStack {
+                Circle().foregroundColor(viewModel.dataset.state[.images(.test)]?.color)
+                Circle().foregroundColor(viewModel.dataset.state[.labels(.test)]?.color)
+            }
         ProgressView(value: viewModel.trainingProgress)
         HStack {
             Button {
@@ -58,7 +68,7 @@ struct NetworkView: View {
                 .aspectRatio(contentMode: .fit)
             Button {
                 Task { @MainActor in
-                    if MYONNControl.miniBatchSize == 1 {
+                    if miniBatchSize == 1 {
                         // SGD with arbitrary number of samples
                         await viewModel.train(startWithSample: viewModel.samplesTrained, count: 100)
                     } else {
@@ -87,7 +97,7 @@ struct NetworkView: View {
                 .aspectRatio(contentMode: .fit)
             Button {
                 guard
-                    let max = dataset.subsets[.images(.test)]?.count
+                    let max = viewModel.dataset.subsets[.images(.test)]?.count
                 else { return }
                 var result: Int
                 var target: Int
@@ -164,16 +174,18 @@ extension NetworkView {
     class NetworkViewModel: ObservableObject {
         var network: Network!
         
+        var dataset = MNISTViewModel(in: getAppFolder())
+        
         @Published var samplesTrained = 0  
         private var samplesQueried = [Int]()
         @Published var batchesTrained = 0
-
+        
         @Published var epochsFinished = 0
         @Published var performance: Float = 0
         
         @Published var trainingProgress: Float = 0 // 0...1
         @Published var trainingDuration: TimeInterval = 0
-
+        
         init(_ network: Network) {
             self.network = network
         }
@@ -214,10 +226,10 @@ extension NetworkView {
             guard
                 let count = dataset.subsets[.images(.train)]?.count
             else { return }
-            if MYONNControl.miniBatchSize == 1 {
+            if miniBatchSize == 1 {
                 await train(startWithSample: 0, count: count)
             } else {
-                await train(startWithBatch: 0, count: count / MYONNControl.miniBatchSize)
+                await train(startWithBatch: 0, count: count / miniBatchSize)
             }
             epochsFinished += 1
         }
@@ -228,11 +240,11 @@ extension NetworkView {
             let t0 = Date.timeIntervalSinceReferenceDate
             for i in 0..<count {
                 let input = (dataset.subsets[.images(.train)] as! [[UInt8]])[index + i]
-				let I = Matrix<Float>(
+                let I = Matrix<Float>(
                     rows: input.count, columns: 1,
                     entries: input.map { (Float($0) / 255.0 * 0.99) + 0.01 })
                 let target = (dataset.subsets[.labels(.train)] as! [UInt8])[index + i]
-				let T = Matrix<Float>(rows: 10, columns: 1)
+                let T = Matrix<Float>(rows: 10, columns: 1)
                     .map { _ in 0.01 }
                 T[Int(target), 0] = 0.99
                 network.train(for: I, with: T)
@@ -252,7 +264,7 @@ extension NetworkView {
             trainingDuration = 0
             let t0 = Date.timeIntervalSinceReferenceDate
             for i in 0..<count {
-                let a = (i + index) * miniBatchSize
+                let a = (index + i) * miniBatchSize
                 let o = a + miniBatchSize
                 let input = (dataset.subsets[.images(.train)] as! [[UInt8]])[a..<o]
                 let I = input.map {

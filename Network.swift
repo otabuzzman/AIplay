@@ -191,30 +191,6 @@ extension Layer: CustomCoder {
     }
 }
 
-typealias NetworkConfig = (
-    layersWithSizes: [Int], activationFunctions: [ActivationFunction], learningRate: Float
-)
-
-struct NetworkFactory: AbstractFactory {
-    func create(_ config: NetworkConfig) -> Network? {
-        guard
-            config.layersWithSizes.count > 1,
-            config.layersWithSizes.count - 1 == config.activationFunctions.count
-        else { return nil }
-        var layers: [Layer] = []
-        for index in 1..<config.layersWithSizes.count {
-            let prevLayerSize = config.layersWithSizes[index - 1]
-            let thisLayerSize = config.layersWithSizes[index]
-            let layer = Layer(
-                numberOfInputs: prevLayerSize,
-                numberOfPUnits: thisLayerSize,
-                activationFunction: config.activationFunctions[index - 1])
-            layers.append(layer)
-        }
-        return Network(layers, alpha: config.learningRate)
-    }
-}
-
 enum ActivationFunction: Int {
     case identity = 1
     case sigmoid
@@ -240,6 +216,32 @@ extension ActivationFunction {
         return result
     }
 }
+
+typealias NetworkConfig = (
+    layersWithSizes: [Int], activationFunctions: [ActivationFunction], learningRate: Float
+)
+
+struct NetworkFactory: AbstractFactory {
+    func create(_ config: NetworkConfig) -> Network? {
+        guard
+            config.layersWithSizes.count > 1,
+            config.layersWithSizes.count - 1 == config.activationFunctions.count
+        else { return nil }
+        var layers: [Layer] = []
+        for index in 1..<config.layersWithSizes.count {
+            let prevLayerSize = config.layersWithSizes[index - 1]
+            let thisLayerSize = config.layersWithSizes[index]
+            let layer = Layer(
+                numberOfInputs: prevLayerSize,
+                numberOfPUnits: thisLayerSize,
+                activationFunction: config.activationFunctions[index - 1])
+            layers.append(layer)
+        }
+        return Network(layers, alpha: config.learningRate)
+    }
+}
+
+
 
 fileprivate let activationLibrary = """
 #include <metal_stdlib>

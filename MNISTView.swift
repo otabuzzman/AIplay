@@ -16,7 +16,6 @@ struct MNISTView: View {
                 Circle().foregroundColor(viewModel.state[.images(.test)]?.color)
                 Circle().foregroundColor(viewModel.state[.labels(.test)]?.color)
             }
-			NetworkView(dataset: viewModel)
         }
     }
 }
@@ -245,6 +244,7 @@ extension MNISTView {
         }
     }
 }
+
 extension URL {
     func accessSecurityScopedResource(_ accessor: (URL) -> Void) -> Void {
         let didStartAccessing = startAccessingSecurityScopedResource()
