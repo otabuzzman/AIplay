@@ -2,6 +2,8 @@ import SwiftUI
 
 struct MYONNView: View {
     @State private var folderPickerShow = getAppFolder() == nil
+	
+	@StateObject private var dataset = MNISTDatset(in: getAppFolder())
     
     var body: some View {
         NetworkView()
@@ -12,7 +14,7 @@ struct MYONNView: View {
                         folder.accessSecurityScopedResource { folder in
                             setAppFolder(url: folder)
                         }
-//                        viewModel.mnist.load(from: getAppFolder()!)
+                        dataset.load(from: getAppFolder()!)
                     default: // .failure(let error)
                         break
                     }
@@ -28,8 +30,8 @@ let defaultConfig: NetworkConfig = (
 )
 
 // specialized NYONN factory
-//   usage: GenericFactory.create(MYONNDefaultFactory(), nil)
-struct MYONNDefaultFactory: AbstractFactory {
+//   usage: GenericFactory.create(DefaultFactory(), nil)
+struct DefaultFactory: AbstractFactory {
     func create(_ config: Never?) -> Network? {
         Network([
             Layer(numberOfInputs: 784, numberOfPUnits: 100, activationFunction: .sigmoid),

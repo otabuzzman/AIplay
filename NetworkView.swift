@@ -24,7 +24,9 @@ extension NetworkViewError {
 }
 
 struct NetworkView: View {
-    @ObservedObject private var viewModel = NetworkViewModel(GenericFactory.create(NetworkFactory(), defaultConfig)!)
+    var dataset: MNISTDataset
+    
+    @ObservedObject private var viewModel = NetworkViewModel(GenericFactory.create(NetworkFactory(), defaultConfig)!, dataset)
     
     @State private var error: NetworkViewError? = nil
     
@@ -171,9 +173,9 @@ struct NetworkView: View {
 extension NetworkView {
     class NetworkViewModel: ObservableObject {
         var network: Network!
+        var dataset: MNISTDataset!
         
-        private(set) var dataset = MNISTViewModel(in: getAppFolder())
-        private(set) var miniBatchSize = 30
+		private(set) var miniBatchSize = 30
         
         @Published var samplesTrained = 0  
         private var samplesQueried = [Int]()
@@ -185,8 +187,9 @@ extension NetworkView {
         @Published var trainingProgress: Float = 0 // 0...1
         @Published var trainingDuration: TimeInterval = 0
         
-        init(_ network: Network) {
+        init(_ network: Network, _ dataset: dataset) {
             self.network = network
+            self.dataset = dataset
         }
         
         func queryAll() async -> Void {
