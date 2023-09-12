@@ -2,11 +2,11 @@ import SwiftUI
 
 struct MYONNView: View {
     @State private var folderPickerShow = getAppFolder() == nil
-	
-	@StateObject private var dataset = MNISTDatset(in: getAppFolder())
+    
+    @StateObject private var dataset = MNISTDataset(in: getAppFolder())
     
     var body: some View {
-        NetworkView()
+        NetworkView(dataset: dataset)
             .sheet(isPresented: $folderPickerShow) {
                 FolderPicker { result in
                     switch result {

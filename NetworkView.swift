@@ -24,9 +24,7 @@ extension NetworkViewError {
 }
 
 struct NetworkView: View {
-    var dataset: MNISTDataset
-    
-    @ObservedObject private var viewModel = NetworkViewModel(GenericFactory.create(NetworkFactory(), defaultConfig)!, dataset)
+    @ObservedObject private var viewModel: NetworkViewModel
     
     @State private var error: NetworkViewError? = nil
     
@@ -34,6 +32,10 @@ struct NetworkView: View {
     @State private var isImporting = false
     
     @State private var queryResultCorrect: Bool?
+    
+    init(dataset: MNISTDataset) {
+        viewModel = NetworkViewModel(GenericFactory.create(NetworkFactory(), defaultConfig)!, dataset)
+    }
     
     var body: some View {
         HStack {
@@ -175,7 +177,7 @@ extension NetworkView {
         var network: Network!
         var dataset: MNISTDataset!
         
-		private(set) var miniBatchSize = 30
+        private(set) var miniBatchSize = 30
         
         @Published var samplesTrained = 0  
         private var samplesQueried = [Int]()
@@ -187,7 +189,7 @@ extension NetworkView {
         @Published var trainingProgress: Float = 0 // 0...1
         @Published var trainingDuration: TimeInterval = 0
         
-        init(_ network: Network, _ dataset: dataset) {
+        init(_ network: Network, _ dataset:  MNISTDataset) {
             self.network = network
             self.dataset = dataset
         }
