@@ -83,7 +83,7 @@ extension MNISTError {
     }
 }
 
-extension MNISTView {
+//extension MNISTView {
     class MNISTViewModel: ObservableObject {
         private var lock = NSLock()
         
@@ -243,7 +243,7 @@ extension MNISTView {
             return try code()
         }
     }
-}
+//}
 
 extension URL {
     func accessSecurityScopedResource(_ accessor: (URL) -> Void) -> Void {

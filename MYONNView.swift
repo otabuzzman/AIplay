@@ -4,7 +4,7 @@ struct MYONNView: View {
     @State private var folderPickerShow = getAppFolder() == nil
     
     var body: some View {
-        NetworkView(config: defaultConfig, miniBatchSize: 30)
+        NetworkView()
             .sheet(isPresented: $folderPickerShow) {
                 FolderPicker { result in
                     switch result {
@@ -12,7 +12,7 @@ struct MYONNView: View {
                         folder.accessSecurityScopedResource { folder in
                             setAppFolder(url: folder)
                         }
-                        viewModel.mnist.load(from: getAppFolder()!)
+//                        viewModel.mnist.load(from: getAppFolder()!)
                     default: // .failure(let error)
                         break
                     }
@@ -24,7 +24,7 @@ struct MYONNView: View {
 // NYONN sample configuration
 //   usage: GenericFactory.create(NetworkFactory(), defaultConfig)
 let defaultConfig: NetworkConfig = (
-    layersWithSizes: [784, 100, 10], activationFunctions: [.sigmoid, .sigmoid], activationFunctionsOnGpu: false, learningRate: 0.3, miniBatchSize: 30
+    layersWithSizes: [784, 100, 10], activationFunctions: [.sigmoid, .sigmoid], learningRate: 0.3
 )
 
 // specialized NYONN factory

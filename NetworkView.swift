@@ -24,10 +24,7 @@ extension NetworkViewError {
 }
 
 struct NetworkView: View {
-    var config: NetworkConfig
-    var miniBatchSize: Int
-    
-    @ObservedObject private var viewModel: NetworkViewModel(GenericFactory.create(NetworkFactory(), config)!)
+    @ObservedObject private var viewModel = NetworkViewModel(GenericFactory.create(NetworkFactory(), defaultConfig)!)
     
     @State private var error: NetworkViewError? = nil
     
@@ -46,6 +43,7 @@ struct NetworkView: View {
                 Circle().foregroundColor(viewModel.dataset.state[.images(.test)]?.color)
                 Circle().foregroundColor(viewModel.dataset.state[.labels(.test)]?.color)
             }
+        }
         ProgressView(value: viewModel.trainingProgress)
         HStack {
             Button {
@@ -60,7 +58,7 @@ struct NetworkView: View {
                 Text("\(viewModel.performance)")
                 Text("\(viewModel.trainingDuration)")
             }
-            Circle().foregroundColor(value == nil ? .gray : value! ? .green : .red)
+            Circle().foregroundColor(queryResultCorrect == nil ? .gray : queryResultCorrect! ? .green : .red)
         }
         HStack {
             Image(systemName: "figure.strengthtraining.traditional")
@@ -68,7 +66,7 @@ struct NetworkView: View {
                 .aspectRatio(contentMode: .fit)
             Button {
                 Task { @MainActor in
-                    if miniBatchSize == 1 {
+                    if viewModel.miniBatchSize == 1 {
                         // SGD with arbitrary number of samples
                         await viewModel.train(startWithSample: viewModel.samplesTrained, count: 100)
                     } else {
@@ -174,7 +172,8 @@ extension NetworkView {
     class NetworkViewModel: ObservableObject {
         var network: Network!
         
-        var dataset = MNISTViewModel(in: getAppFolder())
+        private(set) var dataset = MNISTViewModel(in: getAppFolder())
+        private(set) var miniBatchSize = 30
         
         @Published var samplesTrained = 0  
         private var samplesQueried = [Int]()
@@ -244,7 +243,7 @@ extension NetworkView {
                     rows: input.count, columns: 1,
                     entries: input.map { (Float($0) / 255.0 * 0.99) + 0.01 })
                 let target = (dataset.subsets[.labels(.train)] as! [UInt8])[index + i]
-                let T = Matrix<Float>(rows: 10, columns: 1)
+                var T = Matrix<Float>(rows: 10, columns: 1)
                     .map { _ in 0.01 }
                 T[Int(target), 0] = 0.99
                 network.train(for: I, with: T)
@@ -293,7 +292,7 @@ extension NetworkView {
         }
         
         func reset() -> Void {
-            network = MYONNControl.network
+            network = GenericFactory.create(NetworkFactory(), defaultConfig)!
             samplesTrained = 0
             batchesTrained = 0
             epochsFinished = 0
