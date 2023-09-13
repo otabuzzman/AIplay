@@ -103,138 +103,136 @@ extension NetworkView {
     }
 }
 
-extension NetworkView {
-    class NetworkViewModel: ObservableObject {
-        var network: Network!
-        var dataset: MNISTDataset!
-        
-        private(set) var miniBatchSize = 30
-        
-        @Published var samplesTrained = 0  
-        private var samplesQueried = [Int]()
-        @Published var batchesTrained = 0
-        
-        @Published var epochsFinished = 0
-        @Published var performance: Float = 0
-        
-        @Published var progress: Float = 0 // 0...1
-        @Published var duration: TimeInterval = 0
-        
-        init(_ network: Network, _ dataset:  MNISTDataset) {
-            self.network = network
-            self.dataset = dataset
+class NetworkViewModel: ObservableObject {
+    var network: Network!
+    var dataset: MNISTDataset!
+    
+    private(set) var miniBatchSize = 30
+    
+    @Published var samplesTrained = 0  
+    private var samplesQueried = [Int]()
+    @Published var batchesTrained = 0
+    
+    @Published var epochsFinished = 0
+    @Published var performance: Float = 0
+    
+    @Published var progress: Float = 0 // 0...1
+    @Published var duration: TimeInterval = 0
+    
+    init(_ network: Network, _ dataset:  MNISTDataset) {
+        self.network = network
+        self.dataset = dataset
+    }
+    
+    func queryAll() async -> Void {
+        let sampleCount = dataset.subsets[.images(.test)]?.count ?? 0
+        samplesQueried = [Int](repeating: .zero, count: sampleCount)
+        await query(startWithSample: 0, count: sampleCount)
+        performance = samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
+    }
+    
+    func query(startWithSample index: Int, count: Int) async -> Void {
+        progress = 0
+        for i in 0..<count {
+            _ = query(sample: i)
+            progress = Float(i) / Float(count - 1)
         }
-        
-        func queryAll() async -> Void {
-            let sampleCount = dataset.subsets[.images(.test)]?.count ?? 0
-            samplesQueried = [Int](repeating: .zero, count: sampleCount)
-            await query(startWithSample: 0, count: sampleCount)
-            performance = samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
-        }
-        
-        func query(startWithSample index: Int, count: Int) async -> Void {
+        Task { @MainActor in
+            try await Task.sleep(nanoseconds: 1_000_000_000)
             progress = 0
-            for i in 0..<count {
-                _ = query(sample: i)
-                progress = Float(i) / Float(count - 1)
-            }
-            Task { @MainActor in
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                progress = 0
-            }
         }
-        
-        func query(sample index: Int) -> (Int, Int) {
-            let input = (dataset.subsets[.images(.test)] as! [[UInt8]])[index]
+    }
+    
+    func query(sample index: Int) -> (Int, Int) {
+        let input = (dataset.subsets[.images(.test)] as! [[UInt8]])[index]
+        let I = Matrix<Float>(
+            rows: input.count, columns: 1,
+            entries: input.map { (Float($0) / 255.0 * 0.99) + 0.01 }) // MYONN, p. 151 ff.
+        let result = network.query(for: I).maxValueIndex()
+        let target = (dataset.subsets[.labels(.test)] as! [UInt8])[index]
+        if samplesQueried.count > index {
+            samplesQueried[index] = result == target ? 1 : 0
+        }
+        return (result, Int(target))
+    }
+    
+    func trainAll() async -> Void {
+        guard
+            let count = dataset.subsets[.images(.train)]?.count
+        else { return }
+        if miniBatchSize == 1 {
+            await train(startWithSample: 0, count: count)
+        } else {
+            await train(startWithBatch: 0, count: count / miniBatchSize)
+        }
+        epochsFinished += 1
+    }
+    
+    func train(startWithSample index: Int, count: Int) async -> Void {
+        progress = 0
+        duration = 0
+        let t0 = Date.timeIntervalSinceReferenceDate
+        for i in 0..<count {
+            let input = (dataset.subsets[.images(.train)] as! [[UInt8]])[index + i]
             let I = Matrix<Float>(
                 rows: input.count, columns: 1,
-                entries: input.map { (Float($0) / 255.0 * 0.99) + 0.01 }) // MYONN, p. 151 ff.
-            let result = network.query(for: I).maxValueIndex()
-            let target = (dataset.subsets[.labels(.test)] as! [UInt8])[index]
-            if samplesQueried.count > index {
-                samplesQueried[index] = result == target ? 1 : 0
-            }
-            return (result, Int(target))
+                entries: input.map { (Float($0) / 255.0 * 0.99) + 0.01 })
+            let target = (dataset.subsets[.labels(.train)] as! [UInt8])[index + i]
+            var T = Matrix<Float>(rows: 10, columns: 1)
+                .map { _ in 0.01 }
+            T[Int(target), 0] = 0.99
+            network.train(for: I, with: T)
+            progress = Float(i + 1) / Float(count)
         }
-        
-        func trainAll() async -> Void {
-            guard
-                let count = dataset.subsets[.images(.train)]?.count
-            else { return }
-            if miniBatchSize == 1 {
-                await train(startWithSample: 0, count: count)
-            } else {
-                await train(startWithBatch: 0, count: count / miniBatchSize)
-            }
-            epochsFinished += 1
-        }
-        
-        func train(startWithSample index: Int, count: Int) async -> Void {
+        let t1 = Date.timeIntervalSinceReferenceDate
+        duration = t1 - t0
+        samplesTrained += count
+        Task { @MainActor in
+            try await Task.sleep(nanoseconds: 1_000_000_000)
             progress = 0
-            duration = 0
-            let t0 = Date.timeIntervalSinceReferenceDate
-            for i in 0..<count {
-                let input = (dataset.subsets[.images(.train)] as! [[UInt8]])[index + i]
-                let I = Matrix<Float>(
-                    rows: input.count, columns: 1,
-                    entries: input.map { (Float($0) / 255.0 * 0.99) + 0.01 })
-                let target = (dataset.subsets[.labels(.train)] as! [UInt8])[index + i]
-                var T = Matrix<Float>(rows: 10, columns: 1)
+        }
+    }
+    
+    func train(startWithBatch index: Int, count: Int) async -> Void {
+        progress = 0
+        duration = 0
+        let t0 = Date.timeIntervalSinceReferenceDate
+        for i in 0..<count {
+            let a = (index + i) * miniBatchSize
+            let o = a + miniBatchSize
+            let input = (dataset.subsets[.images(.train)] as! [[UInt8]])[a..<o]
+            let I = input.map {
+                Matrix<Float>(
+                    rows: $0.count, columns: 1,
+                    entries: $0.map { (Float($0) / 255.0 * 0.99) + 0.01 })
+            }
+            let target = (dataset.subsets[.labels(.train)] as! [UInt8])[a..<o]
+            let T = target.map {
+                var target = Matrix<Float>(rows: 10, columns: 1)
                     .map { _ in 0.01 }
-                T[Int(target), 0] = 0.99
-                network.train(for: I, with: T)
-                progress = Float(i + 1) / Float(count)
+                target[Int($0), 0] = 0.99
+                return target
             }
-            let t1 = Date.timeIntervalSinceReferenceDate
-            duration = t1 - t0
-            samplesTrained += count
-            Task { @MainActor in
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                progress = 0
-            }
+            await network.train(for: I, with: T)
+            progress = Float((i + 1)) / Float(count)
         }
-        
-        func train(startWithBatch index: Int, count: Int) async -> Void {
+        let t1 = Date.timeIntervalSinceReferenceDate
+        duration = t1 - t0
+        batchesTrained += count
+        samplesTrained += count * miniBatchSize
+        Task { @MainActor in
+            try await Task.sleep(nanoseconds: 1_000_000_000)
             progress = 0
-            duration = 0
-            let t0 = Date.timeIntervalSinceReferenceDate
-            for i in 0..<count {
-                let a = (index + i) * miniBatchSize
-                let o = a + miniBatchSize
-                let input = (dataset.subsets[.images(.train)] as! [[UInt8]])[a..<o]
-                let I = input.map {
-                    Matrix<Float>(
-                        rows: $0.count, columns: 1,
-                        entries: $0.map { (Float($0) / 255.0 * 0.99) + 0.01 })
-                }
-                let target = (dataset.subsets[.labels(.train)] as! [UInt8])[a..<o]
-                let T = target.map {
-                    var target = Matrix<Float>(rows: 10, columns: 1)
-                        .map { _ in 0.01 }
-                    target[Int($0), 0] = 0.99
-                    return target
-                }
-                await network.train(for: I, with: T)
-                progress = Float((i + 1)) / Float(count)
-            }
-            let t1 = Date.timeIntervalSinceReferenceDate
-            duration = t1 - t0
-            batchesTrained += count
-            samplesTrained += count * miniBatchSize
-            Task { @MainActor in
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                progress = 0
-            }
         }
-        
-        func reset() -> Void {
-            network = GenericFactory.create(NetworkFactory(), defaultConfig)!
-            samplesTrained = 0
-            batchesTrained = 0
-            epochsFinished = 0
-            performance = 0
-            duration = 0
-        }
+    }
+    
+    func reset() -> Void {
+        network = GenericFactory.create(NetworkFactory(), defaultConfig)!
+        samplesTrained = 0
+        batchesTrained = 0
+        epochsFinished = 0
+        performance = 0
+        duration = 0
     }
 }
 

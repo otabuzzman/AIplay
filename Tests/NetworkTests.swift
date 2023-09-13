@@ -4,7 +4,7 @@ import Foundation
 @objcMembers
 final class NetworkTests: TestCase {
     internal func testNetworkInit() {
-        _ = NetworkView.NetworkViewModel(GenericFactory.create(NetworkFactory(), ([3, 2, 1], [.identity, .identity], 0.5))!, MNISTDataset(in: nil))
+        _ = NetworkViewModel(GenericFactory.create(NetworkFactory(), ([3, 2, 1], [.identity, .identity], 0.5))!, MNISTDataset(in: nil))
     }
     
     internal func testLayerInit() {
