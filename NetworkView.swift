@@ -33,10 +33,6 @@ struct NetworkView: View {
     
     @State private var queryResultCorrect: Bool?
     
-    init(dataset: MNISTDataset) {
-        viewModel = NetworkViewModel(GenericFactory.create(NetworkFactory(), defaultConfig)!, dataset)
-    }
-    
     var body: some View {
         HStack {
             VStack {
@@ -48,7 +44,7 @@ struct NetworkView: View {
                 Circle().foregroundColor(viewModel.dataset.state[.labels(.test)]?.color)
             }
         }
-        ProgressView(value: viewModel.trainingProgress)
+        ProgressView(value: viewModel.progress)
         HStack {
             Button {
                 viewModel.reset()
@@ -60,7 +56,7 @@ struct NetworkView: View {
             }
             VStack {
                 Text("\(viewModel.performance)")
-                Text("\(viewModel.trainingDuration)")
+                Text("\(viewModel.duration)")
             }
             Circle().foregroundColor(queryResultCorrect == nil ? .gray : queryResultCorrect! ? .green : .red)
         }
@@ -172,6 +168,16 @@ struct NetworkView: View {
     }
 }
 
+// https://swiftunwrap.com/article/handling-optional-in-swiftui-view
+extension NetworkView {
+    init?(dataset: MNISTDataset) {
+        guard
+            let network = GenericFactory.create(NetworkFactory(), defaultConfig)
+        else { return nil }
+        viewModel = NetworkViewModel(network, dataset)
+    }
+}
+
 extension NetworkView {
     class NetworkViewModel: ObservableObject {
         var network: Network!
@@ -186,8 +192,8 @@ extension NetworkView {
         @Published var epochsFinished = 0
         @Published var performance: Float = 0
         
-        @Published var trainingProgress: Float = 0 // 0...1
-        @Published var trainingDuration: TimeInterval = 0
+        @Published var progress: Float = 0 // 0...1
+        @Published var duration: TimeInterval = 0
         
         init(_ network: Network, _ dataset:  MNISTDataset) {
             self.network = network
@@ -202,14 +208,14 @@ extension NetworkView {
         }
         
         func query(startWithSample index: Int, count: Int) async -> Void {
-            trainingProgress = 0
+            progress = 0
             for i in 0..<count {
                 _ = query(sample: i)
-                trainingProgress = Float(i) / Float(count - 1)
+                progress = Float(i) / Float(count - 1)
             }
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
-                trainingProgress = 0
+                progress = 0
             }
         }
         
@@ -239,8 +245,8 @@ extension NetworkView {
         }
         
         func train(startWithSample index: Int, count: Int) async -> Void {
-            trainingProgress = 0
-            trainingDuration = 0
+            progress = 0
+            duration = 0
             let t0 = Date.timeIntervalSinceReferenceDate
             for i in 0..<count {
                 let input = (dataset.subsets[.images(.train)] as! [[UInt8]])[index + i]
@@ -252,20 +258,20 @@ extension NetworkView {
                     .map { _ in 0.01 }
                 T[Int(target), 0] = 0.99
                 network.train(for: I, with: T)
-                trainingProgress = Float(i + 1) / Float(count)
+                progress = Float(i + 1) / Float(count)
             }
             let t1 = Date.timeIntervalSinceReferenceDate
-            trainingDuration = t1 - t0
+            duration = t1 - t0
             samplesTrained += count
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
-                trainingProgress = 0
+                progress = 0
             }
         }
         
         func train(startWithBatch index: Int, count: Int) async -> Void {
-            trainingProgress = 0
-            trainingDuration = 0
+            progress = 0
+            duration = 0
             let t0 = Date.timeIntervalSinceReferenceDate
             for i in 0..<count {
                 let a = (index + i) * miniBatchSize
@@ -284,15 +290,15 @@ extension NetworkView {
                     return target
                 }
                 await network.train(for: I, with: T)
-                trainingProgress = Float((i + 1)) / Float(count)
+                progress = Float((i + 1)) / Float(count)
             }
             let t1 = Date.timeIntervalSinceReferenceDate
-            trainingDuration = t1 - t0
+            duration = t1 - t0
             batchesTrained += count
             samplesTrained += count * miniBatchSize
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
-                trainingProgress = 0
+                progress = 0
             }
         }
         
@@ -302,7 +308,7 @@ extension NetworkView {
             batchesTrained = 0
             epochsFinished = 0
             performance = 0
-            trainingDuration = 0
+            duration = 0
         }
     }
 }
