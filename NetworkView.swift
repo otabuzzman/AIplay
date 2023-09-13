@@ -1,36 +1,9 @@
 import SwiftUI
 import UniformTypeIdentifiers
 
-enum NetworkViewError: Error {
-    case nndxSave(Error)
-    case nndxLoad(Error)
-    case nndxRead(URL, Error)
-    case nndxDecode(URL)
-}
-
-extension NetworkViewError {
-    var description: String {
-        switch self {
-        case .nndxSave(let error):
-            return "save NNDX file failed with error \(error)"
-        case .nndxLoad(let error):
-            return "load NNDX file failed with error \(error)"
-        case .nndxRead(let url, let error):
-            return "read NNDX file \(url) failed with error \(error)"
-        case .nndxDecode(let url):
-            return "decode NNDX file \(url) failed"
-        }
-    }
-}
-
 struct NetworkView: View {
     @ObservedObject private var viewModel: NetworkViewModel
-    
-    @State private var error: NetworkViewError? = nil
-    
-    @State private var isExporting = false
-    @State private var isImporting = false
-    
+
     @State private var queryResultCorrect: Bool?
     
     var body: some View {
@@ -116,55 +89,7 @@ struct NetworkView: View {
                     .aspectRatio(contentMode: .fit)
             }
         }
-        HStack {
-            Image(systemName: "externaldrive")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-            Button {
-                isExporting = true
-            } label: {
-                Image(systemName: "square.and.arrow.down")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            }
-            .fileExporter(isPresented: $isExporting,
-                          document: NetworkExchangeDocument(viewModel.network.encode),
-                          contentType: .nnxd, defaultFilename: "Untitled") { result in
-                switch result {
-                case .success:
-                    break
-                case .failure(let error):
-                    self.error = .nndxSave(error)
-                }
-            }
-            Button {
-                isImporting = true
-            } label: {
-                Image(systemName: "square.and.arrow.up")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            }
-            .fileImporter(isPresented: $isImporting,
-                          allowedContentTypes: [.nnxd], allowsMultipleSelection: false) { result in
-                switch result {
-                case .success(let url):
-                    do {
-                        let content = try Data(contentsOf: url[0])
-                        guard
-                            let network = Network(from: content)
-                        else {
-                            self.error = .nndxDecode(url[0])
-                            return
-                        }
-                        viewModel.network = network
-                    } catch {
-                        self.error = .nndxRead(url[0], error)
-                    }
-                case .failure(let error):
-                    self.error = .nndxLoad(error)
-                }
-            }
-        }
+        NetworkExchangeView(viewModel: viewModel)
     }
 }
 
@@ -349,5 +274,88 @@ struct NetworkExchangeDocument: FileDocument {
     
     func fileWrapper(configuration: FileDocumentWriteConfiguration) throws -> FileWrapper {
         FileWrapper(regularFileWithContents: content)
+    }
+}
+
+enum NetworkExchangeViewError: Error {
+    case nndxSave(Error)
+    case nndxLoad(Error)
+    case nndxRead(URL, Error)
+    case nndxDecode(URL)
+}
+
+extension NetworkExchangeViewError {
+    var description: String {
+        switch self {
+        case .nndxSave(let error):
+            return "save NNDX file failed with error \(error)"
+        case .nndxLoad(let error):
+            return "load NNDX file failed with error \(error)"
+        case .nndxRead(let url, let error):
+            return "read NNDX file \(url) failed with error \(error)"
+        case .nndxDecode(let url):
+            return "decode NNDX file \(url) failed"
+        }
+    }
+}
+
+struct NetworkExchangeView: View {
+    var viewModel: NetworkViewModel
+    
+    @State private var error: NetworkExchangeViewError? = nil
+    
+    @State private var isExporting = false
+    @State private var isImporting = false
+    
+    var body: some View {
+        HStack {
+            Image(systemName: "externaldrive")
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+            Button {
+                isExporting = true
+            } label: {
+                Image(systemName: "square.and.arrow.down")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            }
+            .fileExporter(isPresented: $isExporting,
+                          document: NetworkExchangeDocument(viewModel.network.encode),
+                          contentType: .nnxd, defaultFilename: "Untitled") { result in
+                switch result {
+                case .success:
+                    break
+                case .failure(let error):
+                    self.error = .nndxSave(error)
+                }
+            }
+            Button {
+                isImporting = true
+            } label: {
+                Image(systemName: "square.and.arrow.up")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            }
+            .fileImporter(isPresented: $isImporting,
+                          allowedContentTypes: [.nnxd], allowsMultipleSelection: false) { result in
+                switch result {
+                case .success(let url):
+                    do {
+                        let content = try Data(contentsOf: url[0])
+                        guard
+                            let network = Network(from: content)
+                        else {
+                            self.error = .nndxDecode(url[0])
+                            return
+                        }
+                        viewModel.network = network
+                    } catch {
+                        self.error = .nndxRead(url[0], error)
+                    }
+                case .failure(let error):
+                    self.error = .nndxLoad(error)
+                }
+            }
+        }
     }
 }
