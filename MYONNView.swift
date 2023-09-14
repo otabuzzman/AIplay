@@ -39,13 +39,3 @@ struct DefaultFactory: AbstractFactory {
         ], alpha: 0.3)
     }
 }
-
-extension Matrix where Entry: Comparable {
-    func maxValueEntry() -> Entry {
-        entries.max(by: { $0 < $1 })! // probably save to force unwrap
-    }
-    
-    func maxValueIndex() -> Int {
-        entries.indices.max(by: { entries[$0] < entries[$1] })! // probably save to force unwrap
-    }
-}

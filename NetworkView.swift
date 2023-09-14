@@ -104,8 +104,8 @@ extension NetworkView {
 }
 
 class NetworkViewModel: ObservableObject {
-    var network: Network!
-    var dataset: MNISTDataset!
+    var network: Network
+    var dataset: MNISTDataset
     
     private(set) var miniBatchSize = 30
     
@@ -117,6 +117,8 @@ class NetworkViewModel: ObservableObject {
     @Published var performance: Float = 0
     
     @Published var progress: Float = 0 // 0...1
+    private let progressIncrement: Float = 0.01 // 0>..1
+    
     @Published var duration: TimeInterval = 0
     
     init(_ network: Network, _ dataset:  MNISTDataset) {
@@ -132,10 +134,12 @@ class NetworkViewModel: ObservableObject {
     }
     
     func query(startWithSample index: Int, count: Int) async -> Void {
-        progress = 0
         for i in 0..<count {
             _ = query(sample: i)
-            progress = Float(i) / Float(count - 1)
+            let progress = Float(i) / Float(count)
+            if progress > self.progress + progressIncrement {
+                self.progress = progress
+            }
         }
         Task { @MainActor in
             try await Task.sleep(nanoseconds: 1_000_000_000)
@@ -169,7 +173,6 @@ class NetworkViewModel: ObservableObject {
     }
     
     func train(startWithSample index: Int, count: Int) async -> Void {
-        progress = 0
         duration = 0
         let t0 = Date.timeIntervalSinceReferenceDate
         for i in 0..<count {
@@ -182,7 +185,10 @@ class NetworkViewModel: ObservableObject {
                 .map { _ in 0.01 }
             T[Int(target), 0] = 0.99
             network.train(for: I, with: T)
-            progress = Float(i + 1) / Float(count)
+            let progress = Float(i) / Float(count)
+            if progress > self.progress + progressIncrement {
+                self.progress = progress
+            }
         }
         let t1 = Date.timeIntervalSinceReferenceDate
         duration = t1 - t0
@@ -194,7 +200,6 @@ class NetworkViewModel: ObservableObject {
     }
     
     func train(startWithBatch index: Int, count: Int) async -> Void {
-        progress = 0
         duration = 0
         let t0 = Date.timeIntervalSinceReferenceDate
         for i in 0..<count {
@@ -214,7 +219,10 @@ class NetworkViewModel: ObservableObject {
                 return target
             }
             await network.train(for: I, with: T)
-            progress = Float((i + 1)) / Float(count)
+            let progress = Float(i) / Float(count)
+            if progress > self.progress + progressIncrement {
+                self.progress = progress
+            }
         }
         let t1 = Date.timeIntervalSinceReferenceDate
         duration = t1 - t0
@@ -355,5 +363,15 @@ struct NetworkExchangeView: View {
                 }
             }
         }
+    }
+}
+
+extension Matrix where Entry: Comparable {
+    func maxValueEntry() -> Entry {
+        entries.max(by: { $0 < $1 })! // probably save to force unwrap
+    }
+    
+    func maxValueIndex() -> Int {
+        entries.indices.max(by: { entries[$0] < entries[$1] })! // probably save to force unwrap
     }
 }
