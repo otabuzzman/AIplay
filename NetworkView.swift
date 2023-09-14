@@ -136,7 +136,7 @@ class NetworkViewModel: ObservableObject {
     func query(startWithSample index: Int, count: Int) async -> Void {
         for i in 0..<count {
             _ = query(sample: i)
-            let progress = Float(i) / Float(count)
+            let progress = Float(i + 1) / Float(count)
             if progress > self.progress + progressIncrement {
                 self.progress = progress
             }
@@ -185,7 +185,7 @@ class NetworkViewModel: ObservableObject {
                 .map { _ in 0.01 }
             T[Int(target), 0] = 0.99
             network.train(for: I, with: T)
-            let progress = Float(i) / Float(count)
+            let progress = Float(i + 1) / Float(count)
             if progress > self.progress + progressIncrement {
                 self.progress = progress
             }
@@ -219,7 +219,7 @@ class NetworkViewModel: ObservableObject {
                 return target
             }
             await network.train(for: I, with: T)
-            let progress = Float(i) / Float(count)
+            let progress = Float(i + 1) / Float(count)
             if progress > self.progress + progressIncrement {
                 self.progress = progress
             }
