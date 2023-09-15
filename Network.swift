@@ -1,4 +1,5 @@
 import Foundation
+import GameplayKit
 import Metal
 
 struct Network {
@@ -114,7 +115,14 @@ struct Layer {
         if let W = W {
             self.W = W
         } else {
-            self.W = Matrix<Float>(rows: punits, columns: inputs).map { _ in Float.random(in: -0.5...0.5) }
+            // MYONN, p. 103 ff.
+            let d = powf(Float(inputs), -0.5)
+            let random = GKRandomSource()
+            let normal = GaussianDistribution(randomSource: random, mean: 0, deviation: d)!
+            // MYONN, p. 133
+            self.W = Matrix<Float>(rows: punits, columns: inputs).map { _ in normal.nextFloat() }
+            // MYONN, p. 151 ff.
+            // self.W = Matrix<Float>(rows: punits, columns: inputs).map { _ in Float.random(in: -0.5...0.5) }
         }
     }
     
