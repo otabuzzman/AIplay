@@ -5,6 +5,7 @@ struct NetworkView: View {
     @ObservedObject private var viewModel: NetworkViewModel
 
     @State private var queryResultCorrect: Bool?
+    @State private var sketchedQuery: [UInt8] = []
     
     var body: some View {
         HStack {
@@ -90,6 +91,7 @@ struct NetworkView: View {
             }
         }
         NetworkExchangeView(viewModel: viewModel)
+        QueryView(query: $sketchedQuery)
     }
 }
 
