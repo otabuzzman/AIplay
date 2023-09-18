@@ -87,7 +87,7 @@ func stringOfElements<T>(in this: [T], count: Int? = nil, format: @escaping (T) 
 
 // https://holyswift.app/create-generic-factory-in-swift/
 struct GenericFactory {
-    static func create<Config, Output, Factory: AbstractFactory>(_ object: Factory,_ config: Config) -> Output? where Factory.Config == Config, Factory.Output == Output {
+    static func create<Config, Output, Factory: AbstractFactory>(_ object: Factory, _ config: Config) -> Output? where Factory.Config == Config, Factory.Output == Output {
         object.create(config)
     }
 }

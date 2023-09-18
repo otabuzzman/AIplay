@@ -11,36 +11,29 @@ struct QueryView: View {
 
     var body: some View {
         HStack(alignment: .top) {
-            ZStack {
-                Image(systemName: "square.and.pencil")
+            Group {
+                ZStack {
+                    Image(systemName: "square.and.pencil")
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .foregroundColor(.gray)
+                        .brightness(0.42)
+                        .padding(4)
+                    CanvasView(canvas: $canvas, mNISTImage: $queryInput)
+                        .onChange(of: queryInput) { input in
+                            queryResult = viewModel.query(sample: queryInput)
+                        }
+                }
+                .overlay {
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(.gray, lineWidth: 2)
+                }
+                Image(mNISTImage: queryInput)?
                     .resizable()
                     .aspectRatio(contentMode: .fill)
-                    .foregroundColor(.gray)
-                    .brightness(0.42)
-                CanvasView(canvas: $canvas, mNISTImage: $queryInput)
-                    .onChange(of: queryInput) { input in
-                        queryResult = viewModel.query(sample: queryInput)
-                        
-                        for y in 0..<28 {
-                            for x in 0..<28 {
-                                print(String(format: "%2X ", queryInput[y * 28 + x]), terminator: "")
-                            }
-                            print()
-                        }
-                        print()
-                        
-                    }
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
             }
             .frame(width: 140, height: 140)
-            .padding()
-            .overlay {
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(.gray, lineWidth: 2)
-            }
-            Image(mNISTImage: queryInput)?
-                .resizable()
-                .aspectRatio(contentMode: .fill)
-                .frame(width: 140, height: 140)
             Button {
                 canvas.drawing = PKDrawing()
                 queryResult = -1
@@ -53,20 +46,19 @@ struct QueryView: View {
             .frame(width: 32, height: 32)
             .disabled(canvas.drawing.bounds.isEmpty)
         }
-        
         HStack(alignment: .top) {
             VStack {
                 Group {
                     HStack {
                         ForEach(0..<5, id: \.self) {
                             ResultButton(digit: $0, result: $queryResult, target: $queryTarget)
-                                .frame(width: 48)
+                                .frame(width: 51)
                         }
                     }
                     HStack {
                         ForEach(5..<10, id: \.self) {
                             ResultButton(digit: $0, result: $queryResult, target: $queryTarget)
-                                .frame(width: 48)
+                                .frame(width: 51)
                         }
                     }
                 }
