@@ -5,7 +5,6 @@ struct NetworkView: View {
     @ObservedObject private var viewModel: NetworkViewModel
 
     @State private var queryResultCorrect: Bool?
-    @State private var sketchedQuery: [UInt8] = []
     
     var body: some View {
         HStack {
@@ -64,7 +63,7 @@ struct NetworkView: View {
             }
         }
         HStack {
-            Image(systemName: "magnifyingglass")
+            Image(systemName: "sparkle.magnifyingglass")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
             Button {
@@ -91,7 +90,7 @@ struct NetworkView: View {
             }
         }
         NetworkExchangeView(viewModel: viewModel)
-        QueryView(query: $sketchedQuery)
+        QueryView(viewModel: viewModel)
     }
 }
 
@@ -151,15 +150,19 @@ class NetworkViewModel: ObservableObject {
     
     func query(sample index: Int) -> (Int, Int) {
         let input = (dataset.subsets[.images(.test)] as! [[UInt8]])[index]
-        let I = Matrix<Float>(
-            rows: input.count, columns: 1,
-            entries: input.map { (Float($0) / 255.0 * 0.99) + 0.01 }) // MYONN, p. 151 ff.
-        let result = network.query(for: I).maxValueIndex()
         let target = (dataset.subsets[.labels(.test)] as! [UInt8])[index]
+        let result = query(sample: input)
         if samplesQueried.count > index {
             samplesQueried[index] = result == target ? 1 : 0
         }
         return (result, Int(target))
+    }
+    
+    func query(sample: [UInt8]) -> Int {
+        let I = Matrix<Float>(
+            rows: sample.count, columns: 1,
+            entries: sample.map { (Float($0) / 255.0 * 0.99) + 0.01 }) // MYONN, p. 151 ff.
+        return network.query(for: I).maxValueIndex()
     }
     
     func trainAll() async -> Void {
@@ -179,14 +182,8 @@ class NetworkViewModel: ObservableObject {
         let t0 = Date.timeIntervalSinceReferenceDate
         for i in 0..<count {
             let input = (dataset.subsets[.images(.train)] as! [[UInt8]])[index + i]
-            let I = Matrix<Float>(
-                rows: input.count, columns: 1,
-                entries: input.map { (Float($0) / 255.0 * 0.99) + 0.01 })
             let target = (dataset.subsets[.labels(.train)] as! [UInt8])[index + i]
-            var T = Matrix<Float>(rows: 10, columns: 1)
-                .map { _ in 0.01 }
-            T[Int(target), 0] = 0.99
-            network.train(for: I, with: T)
+            train(sample: input, target: target)
             let progress = Float(i + 1) / Float(count)
             if progress > self.progress + progressIncrement {
                 self.progress = progress
@@ -199,6 +196,16 @@ class NetworkViewModel: ObservableObject {
             try await Task.sleep(nanoseconds: 1_000_000_000)
             progress = 0
         }
+    }
+    
+    func train(sample: [UInt8], target: UInt8) -> Void {
+        let I = Matrix<Float>(
+            rows: sample.count, columns: 1,
+            entries: sample.map { (Float($0) / 255.0 * 0.99) + 0.01 })
+        var T = Matrix<Float>(rows: 10, columns: 1)
+            .map { _ in 0.01 }
+        T[Int(target), 0] = 0.99
+        network.train(for: I, with: T)
     }
     
     func train(startWithBatch index: Int, count: Int) async -> Void {
