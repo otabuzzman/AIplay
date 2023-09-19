@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 struct NetworkView: View {
     @ObservedObject private var viewModel: NetworkViewModel
 
+    @State private var queryInput: [UInt8] = []
     @State private var queryResultCorrect: Bool?
     
     var body: some View {
@@ -32,6 +33,26 @@ struct NetworkView: View {
                 Text("\(viewModel.duration)")
             }
             Circle().foregroundColor(queryResultCorrect == nil ? .gray : queryResultCorrect! ? .green : .red)
+            ZStack {
+                Group {
+                    Image(systemName: "display")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                    Image(systemName: "sparkle.magnifyingglass")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .scaleEffect(CGSize(width: 0.5, height: 0.5))
+                        .offset(x: 0, y: -5)
+                    
+                }
+                .foregroundColor(.gray)
+                .brightness(0.42)
+                .padding(6)
+                Image(mNISTImage: queryInput)?
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .clipShape(RoundedRectangle(cornerRadius: 4))
+            }
         }
         HStack {
             Image(systemName: "figure.strengthtraining.traditional")
@@ -70,9 +91,11 @@ struct NetworkView: View {
                 guard
                     let max = viewModel.dataset.subsets[.images(.test)]?.count
                 else { return }
+                let index = Int.random(in: 0..<max)
+                queryInput = (viewModel.dataset.subsets[.images(.test)] as! [[UInt8]])[index]
                 var result: Int
                 var target: Int
-                (result, target) = viewModel.query(sample: Int.random(in: 0..<max))
+                (result, target) = viewModel.query(sample: index)
                 queryResultCorrect = result == target
             } label: {
                 Image(systemName: "doc")

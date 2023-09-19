@@ -36,7 +36,7 @@ struct QueryView: View {
                         Image(systemName: "square.and.pencil")
                             .resizable()
                             .aspectRatio(contentMode: .fit)
-                            .frame(width: 64, height: 64)
+                            .scaleEffect(CGSize(width: 0.5, height: 0.5))
                             .offset(x: 0, y: -12)
 
                     }
