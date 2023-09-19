@@ -13,6 +13,23 @@ On the first start the app asks for a folder to store the MNIST dataset. The fou
 
 Input from the sketch area must be centered with some padding to the edges. Ideally, the images on the input and query monitors will look quite similar.
 
+<img align="left" src="myonn-app-usage.jpg" alt="MYONN app usage image">
+1. The MNIST dataset state. Each circle represents one of the files that make up the dataset: training images, training labels, test images and test labels. The colors are yellow when loading, green when successful, and red when error occurs.
+2. Reset the network. No additional confirmation. Any training is immediately canceled.
+3. The number above is the test set performance of the current network. Below is the time it took to train the network with the training set (duration).
+4. The success indicator for the last prediction with a single element from the test set.
+5. The query monitor displays the MNIST image used by the last test set prediction.
+6. Train the network sequentially with the next mini-batch from the training set.
+7. Train the network with the entire training set. Updates the duration when the operation completes.
+8. Query the network for a random element from the test set (predict output). Updates success indicator and query monitor.
+9. Query the network with the entire test set. Updates performance when the operation is complete.
+10. Save and load the current network to and from the hard drive.
+11. The sketch area for handwritten input with a monitor next to it.
+12. Control to delete sketch area.
+13. The highlighted result for prediction from sketch region input.
+14. Control for training the network with selected (green) result.
+<br clear="left/>
+
 **Working**
 - MNIST loading/ training/ predicting
 - Save/ load trained model (proprietary format)
@@ -53,7 +70,7 @@ Apps used on iPad
 |FolderPicker.swift|A view. The function is in the name.|
 |GaussianDistribution.swift|A class to provide random floats with normal distribution.|
 |Matrix.swift|A somewhat pimped Array for matrix operations. Leverages vDSP.|
-|MNISTDataset.swift|MVVM to put MNIST on local storage.|
+|MNISTDataset.swift|MVVM to put MNIST on disk.|
 |MYONNView.swift|The top-level view.|
 |Network.swift|The network implementation from MYONN book. Also includes Metal compute shader code.|
 |NetworkView.swift|MVVM to make use of network in SwiftUI.|
