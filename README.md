@@ -13,7 +13,7 @@ On the first start the app asks for a folder to store the MNIST dataset. The fou
 
 Input from the sketch area must be centered with some padding to the edges. Ideally, the images on the input and query monitors will look quite similar.
 
-<img align="left" src="myonn-app-usage.jpg" alt="MYONN app usage image">
+<img align="left" src="myonn-app-usage.png" alt="MYONN app usage image">
 1. The MNIST dataset state. Each circle represents one of the files that make up the dataset: training images, training labels, test images and test labels. The colors are yellow when loading, green when successful, and red when error occurs.
 2. Reset the network. No additional confirmation. Any training is immediately canceled.
 3. The number above is the test set performance of the current network. Below is the time it took to train the network with the training set (duration).
