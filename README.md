@@ -26,9 +26,9 @@ Input from the sketch area must be centered with some padding to the edges. Idea
 10. Save and load the current network to and from the hard drive.<br>
 11. The sketch area for handwritten input with a monitor next to it.<br>
 12. Control to delete sketch area.<br>
-13. The highlighted result for prediction from sketch region input.<br>
+13. The highlighted result with prediction for sketch region input.<br>
 14. Control for training the network with selected (green) result.<br>
-<br clear="left/>
+<br clear="left"/>
 
 **Working**
 - MNIST loading/ training/ predicting
