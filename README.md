@@ -37,7 +37,7 @@ Apps used on iPad
 ### Build
 - Create and open a new app in SP4
 - Delete predefined `*.swift` files
-- Copy Swift files (except `Package.swift`) from repository:
+- Copy files (except `Package.swift` and Git stuff) from repository:
   - Get repository on iPad (Working Copy)
   - Copy Sources folder from WC to SP4 (Textastic)
 - Add `additionalInfoPlistContentFilePath`, `resources` and `swiftSettings` keys to `Package.swift` in new app
