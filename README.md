@@ -14,20 +14,20 @@ On the first start the app asks for a folder to store the MNIST dataset. The fou
 Input from the sketch area must be centered with some padding to the edges. Ideally, the images on the input and query monitors will look quite similar.
 
 <img align="left" src="myonn-app-usage.png" alt="MYONN app usage image">
-1. The MNIST dataset state. Each circle represents one of the files that make up the dataset: training images, training labels, test images and test labels. The colors are yellow when loading, green when successful, and red when error occurs.
-2. Reset the network. No additional confirmation. Any training is immediately canceled.
-3. The number above is the test set performance of the current network. Below is the time it took to train the network with the training set (duration).
-4. The success indicator for the last prediction with a single element from the test set.
-5. The query monitor displays the MNIST image used by the last test set prediction.
-6. Train the network sequentially with the next mini-batch from the training set.
-7. Train the network with the entire training set. Updates the duration when the operation completes.
-8. Query the network for a random element from the test set (predict output). Updates success indicator and query monitor.
-9. Query the network with the entire test set. Updates performance when the operation is complete.
-10. Save and load the current network to and from the hard drive.
-11. The sketch area for handwritten input with a monitor next to it.
-12. Control to delete sketch area.
-13. The highlighted result for prediction from sketch region input.
-14. Control for training the network with selected (green) result.
+1. The MNIST dataset state. Each circle represents one of the files that make up the dataset: training images, training labels, test images and test labels. The colors are yellow when loading, green when successful, and red when error occurs.<br>
+2. Reset the network. No additional confirmation. Any training is immediately canceled.<br>
+3. The number above is the test set performance of the current network. Below is the time it took to train the network with the training set (duration).<br>
+4. The success indicator for the last prediction with a single element from the test set.<br>
+5. The query monitor displays the MNIST image used by the last test set prediction.<br>
+6. Train the network sequentially with the next mini-batch from the training set.<br>
+7. Train the network with the entire training set. Updates the duration when the operation completes.<br>
+8. Query the network for a random element from the test set (predict output). Updates success indicator and query monitor.<br>
+9. Query the network with the entire test set. Updates performance when the operation is complete.<br>
+10. Save and load the current network to and from the hard drive.<br>
+11. The sketch area for handwritten input with a monitor next to it.<br>
+12. Control to delete sketch area.<br>
+13. The highlighted result for prediction from sketch region input.<br>
+14. Control for training the network with selected (green) result.<br>
 <br clear="left/>
 
 **Working**
