@@ -15,7 +15,7 @@ struct QueryView: View {
                 ZStack {
                     Image(systemName: "square.and.pencil")
                         .resizable()
-                        .aspectRatio(contentMode: .fill)
+                        .aspectRatio(contentMode: .fit)
                         .foregroundColor(.gray)
                         .brightness(0.42)
                         .padding(4)
@@ -28,10 +28,26 @@ struct QueryView: View {
                     RoundedRectangle(cornerRadius: 4)
                         .stroke(.gray, lineWidth: 2)
                 }
-                Image(mNISTImage: queryInput)?
-                    .resizable()
-                    .aspectRatio(contentMode: .fill)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                ZStack {
+                    Group {
+                        Image(systemName: "display")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                        Image(systemName: "square.and.pencil")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 64, height: 64)
+                            .offset(x: 0, y: -12)
+
+                    }
+                    .foregroundColor(.gray)
+                    .brightness(0.42)
+                    .padding(4)
+                    Image(mNISTImage: queryInput)?
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 4))
             }
             .frame(width: 140, height: 140)
             Button {
@@ -44,7 +60,7 @@ struct QueryView: View {
                     .aspectRatio(contentMode: .fit)
             }
             .frame(width: 32, height: 32)
-            .disabled(canvas.drawing.bounds.isEmpty)
+            .disabled(queryResult == -1)
         }
         HStack(alignment: .top) {
             VStack {
@@ -62,7 +78,7 @@ struct QueryView: View {
                         }
                     }
                 }
-                .disabled(canvas.drawing.bounds.isEmpty)
+                .disabled(queryResult == -1)
             }
             Button {
                 viewModel.train(sample: queryInput, target: UInt8(queryTarget))
