@@ -6,7 +6,7 @@ struct ContentView: View {
     
     var body: some View {
         HStack {
-            Label("AIplay", systemImage: "square")
+            Label("AIplay", image: "npu")
             Spacer()
             Button {
                 showAppInfo.toggle()
@@ -25,7 +25,7 @@ struct ContentView: View {
                     HStack {
                         Button {
                         } label: {
-                            Label("Reload MNIST", systemImage: "arrow.counterclockwise")
+                            Label("Reload MNIST", systemImage: "arrow.counterclockwise.icloud")
                         }
                         Spacer()
                         Circle()
@@ -180,25 +180,6 @@ internal func getAppFolder() -> URL? {
         if isStale { setAppFolder(url: appFolder!) }
     }
     return appFolder
-}
-
-struct AppIcon: View {
-    var body: some View {
-        GeometryReader { dim in
-            let w = dim.size.width
-            let h = dim.size.height
-            ZStack(alignment: .center) {
-                Image(systemName: "cpu")
-                    .resizable()
-                Rectangle()
-                    .frame(width: w * 64 / 96, height: h * 64 / 96)
-                    .colorInvert()
-                Image(systemName: "brain")
-                    .resizable()
-                    .frame(width: w * 56 / 96, height: h * 56 / 96)
-            }
-        }
-    }
 }
 
 @main
