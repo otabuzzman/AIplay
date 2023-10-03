@@ -14,11 +14,85 @@ struct ContentView: View {
                 Image(systemName: "info.circle")
             }
         }
-        .font(.title)
+        .font(.largeTitle)
+        .padding()
+        .sheet(isPresented: $showAppInfo) {
+            appInfo(isPresented: $showAppInfo)
+        }
+        MYONNView()
+    }
+}
+
+struct AlternateView: View {
+    @State private var showAppInfo = false
+    
+    var body: some View {
+        HStack {
+            Label("AIplay", image: "npu")
+            Spacer()
+            Button {
+                showAppInfo.toggle()
+            } label: {
+                Image(systemName: "info.circle")
+            }
+        }
+        .font(.largeTitle)
+        .padding()
         .sheet(isPresented: $showAppInfo) {
             appInfo(isPresented: $showAppInfo)
         }
         ProgressView(value: 0)
+        VStack {
+            HStack { // mimic list section header look
+                Label("NN PREDICTION", systemImage: "wand.and.stars.inverse")
+                    .foregroundColor(.secondary).bold(true)
+                Spacer()
+            }
+            .padding(.leading, 12)
+            .padding(.bottom, 2)
+            HStack {
+                Button {
+                } label: {
+                    Label("Random testset number", systemImage: "sparkle.magnifyingglass")
+                }
+                Spacer()
+                Text("4")
+            }
+            .padding()
+            .background(.white)
+            .background(in: RoundedRectangle(cornerRadius: 12))
+            Divider()
+            HStack {
+                VStack {
+                    HStack {
+                        Text("Input")
+                        Spacer()
+                        Button {
+                        } label: {
+                            Image(systemName: "xmark.app")
+                        }
+                    }
+                    Image(systemName: "square.and.pencil")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .padding()
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(.primary, lineWidth: 1))
+                }
+                VStack {
+                    Text("Image")
+                    Image(systemName: "sparkle.magnifyingglass")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .padding()
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(.primary, lineWidth: 1))
+                }
+            }
+            .padding()
+            .background(.white)
+            .background(in: RoundedRectangle(cornerRadius: 12))
+        }
+        .padding()
+        .background(Color(UIColor.secondarySystemBackground))
         VStack {
             Form {
                 Section {
@@ -28,9 +102,13 @@ struct ContentView: View {
                             Label("Reload MNIST", systemImage: "arrow.counterclockwise.icloud")
                         }
                         Spacer()
-                        Circle()
-                            .frame(height: 28)
-                            .foregroundStyle(.gray)
+                        HStack {
+                            Circle().foregroundColor(.gray)
+                            Circle().foregroundColor(.gray)
+                            Circle().foregroundColor(.gray)
+                            Circle().foregroundColor(.gray)
+                        }
+                        .frame(height: 24)
                     }
                 } header: {
                     HStack {
@@ -62,9 +140,9 @@ struct ContentView: View {
                         Text("0")
                     }
                     HStack {
-                        Text("Duration of last completion")
+                        Text("Duration of last epoch")
                         Spacer()
-                        Text("0:00")
+                        Text(DateComponentsFormatter().string(from: 1920)!)
                     }
                 } header: {
                     HStack {
@@ -79,7 +157,7 @@ struct ContentView: View {
                             Label("Train next mini-batch", systemImage: "figure.strengthtraining.traditional")
                         }
                         Spacer()
-                    }
+                    } 
                     HStack {
                         Button {
                         } label: {
@@ -90,10 +168,10 @@ struct ContentView: View {
                     HStack {
                         Button {
                         } label: {
-                            Label("Determine performance", systemImage: "sparkle.magnifyingglass")
+                            Label("NN Performance", systemImage: "sparkle.magnifyingglass")
                         }
                         Spacer()
-                        Text("0.9442")
+                        Text(String(format: "%.4f", 0.9442))
                     }
                     HStack {
                         Button {
@@ -109,29 +187,15 @@ struct ContentView: View {
                         }
                         Spacer()
                     }
-                }
-                Section {
+                } footer: {
                     HStack {
-                        Button {
-                        } label: {
-                            Label("Random item", systemImage: "sparkle.magnifyingglass")
+                        Spacer()
+                        Button("Reset") {
                         }
-                        Spacer()
-                        Text("4")
-                    }
-                    HStack {
-                        Image(systemName: "square.and.pencil")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                        Image(systemName: "sparkle.magnifyingglass")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                    }
-                } header: {
-                    HStack {
-                        Label("NN PREDICTION", systemImage: "wand.and.stars.inverse").font(.headline)
+                        .foregroundColor(.red)
                         Spacer()
                     }
+                    .padding()
                 }
             }
         }

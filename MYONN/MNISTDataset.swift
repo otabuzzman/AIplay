@@ -35,19 +35,6 @@ enum MNISTState {
     case loading
     case loaded
     case failed(Error)
-    
-    var color: Color {
-        switch self {
-        case .missing:
-            return .gray
-        case .loading:
-            return .yellow
-        case .loaded:
-            return .green
-        case .failed:
-            return .red
-        }
-    }
 }
 
 enum MNISTError: Error {

@@ -6,7 +6,7 @@ struct MYONNView: View {
     @StateObject private var dataset = MNISTDataset(in: getAppFolder())
     
     var body: some View {
-        NetworkView(dataset: dataset)
+        NetworkView(config: defaultConfig, dataset: dataset)
             .sheet(isPresented: $folderPickerShow) {
                 FolderPicker { result in
                     switch result {

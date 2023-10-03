@@ -117,13 +117,27 @@ struct NetworkView: View {
     }
 }
 
-// https://swiftunwrap.com/article/handling-optional-in-swiftui-view
 extension NetworkView {
-    init?(dataset: MNISTDataset) {
+    init?(config: NetworkConfig, dataset: MNISTDataset) {
         guard
-            let network = GenericFactory.create(NetworkFactory(), defaultConfig)
+            let network = GenericFactory.create(NetworkFactory(), config)
         else { return nil }
         viewModel = NetworkViewModel(network, dataset)
+    }
+}
+
+extension MNISTState {
+    var color: Color {
+        switch self {
+        case .missing:
+            return .gray
+        case .loading:
+            return .yellow
+        case .loaded:
+            return .green
+        case .failed:
+            return .red
+        }
     }
 }
 
