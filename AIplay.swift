@@ -248,6 +248,8 @@ internal func getAppFolder() -> URL? {
 
 @main
 struct AIplay: App {
+    @State private var folderPickerShow = getAppFolder() == nil
+
     init() {
         PlaygroundTester.PlaygroundTesterConfiguration.isTesting = false
     }
@@ -256,6 +258,18 @@ struct AIplay: App {
         WindowGroup {
             PlaygroundTester.PlaygroundTesterWrapperView {
                 ContentView()
+            }
+            .sheet(isPresented: $folderPickerShow) {
+                FolderPicker { result in
+                    switch result {
+                    case .success(let folder):
+                        folder.accessSecurityScopedResource { folder in
+                            setAppFolder(url: folder)
+                        }
+                    default: // .failure(let error)
+                        break
+                    }
+                }
             }
         }
     }

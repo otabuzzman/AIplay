@@ -1,25 +1,10 @@
 import SwiftUI
 
 struct MYONNView: View {
-    @State private var folderPickerShow = getAppFolder() == nil
-    
     @StateObject private var dataset = MNISTDataset(in: getAppFolder())
     
     var body: some View {
         NetworkView(config: defaultConfig, dataset: dataset)
-            .sheet(isPresented: $folderPickerShow) {
-                FolderPicker { result in
-                    switch result {
-                    case .success(let folder):
-                        folder.accessSecurityScopedResource { folder in
-                            setAppFolder(url: folder)
-                        }
-                        dataset.load(from: getAppFolder()!)
-                    default: // .failure(let error)
-                        break
-                    }
-                }
-            }
     }
 }
 

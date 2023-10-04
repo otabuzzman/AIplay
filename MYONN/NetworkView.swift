@@ -1,119 +1,261 @@
 import SwiftUI
+import PencilKit
+
 import UniformTypeIdentifiers
 
 struct NetworkView: View {
     @ObservedObject private var viewModel: NetworkViewModel
 
+    @State private var canvas = PKCanvasView()
     @State private var queryInput: [UInt8] = []
-    @State private var queryResultCorrect: Bool?
+    @State private var queryResult: Int?
+    @State private var queryTarget: Int?
     
+    @State private var error: NetworkExchangeError?
+    
+    @State private var isExporting = false
+    @State private var isImporting = false
+
     var body: some View {
-        HStack {
-            VStack {
-                Circle().foregroundColor(viewModel.dataset.state[.images(.train)]?.color)
-                Circle().foregroundColor(viewModel.dataset.state[.labels(.train)]?.color)
-            }
-            VStack {
-                Circle().foregroundColor(viewModel.dataset.state[.images(.test)]?.color)
-                Circle().foregroundColor(viewModel.dataset.state[.labels(.test)]?.color)
-            }
-        }
         ProgressView(value: viewModel.progress)
-        HStack {
-            Button {
-                viewModel.reset()
-                queryResultCorrect = nil
-            } label: {
-                Image(systemName: "arrow.counterclockwise")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
+        VStack {
+            HStack { // mimic list section header look
+                Label("NN PREDICTION", systemImage: "wand.and.stars.inverse")
+                    .foregroundColor(.secondary).bold(true)
+                Spacer()
             }
-            VStack {
-                Text("\(viewModel.performance)")
-                Text("\(viewModel.duration)")
-            }
-            Circle().foregroundColor(queryResultCorrect == nil ? .gray : queryResultCorrect! ? .green : .red)
-            ZStack {
-                Group {
-                    Image(systemName: "display")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                    Image(systemName: "sparkle.magnifyingglass")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .scaleEffect(CGSize(width: 0.5, height: 0.5))
-                        .offset(x: 0, y: -5)
-                    
+            .padding(.leading, 12)
+            .padding(.bottom, 2)
+            HStack {
+                Button {
+                    guard
+                        let max = viewModel.dataset.subsets[.images(.test)]?.count
+                    else { return }
+                    let index = Int.random(in: 0..<max)
+                    queryInput = (viewModel.dataset.subsets[.images(.test)] as! [[UInt8]])[index]
+                    (queryResult, queryTarget) = viewModel.query(sample: index)
+                } label: {
+                    Label("Random testset number", systemImage: "sparkle.magnifyingglass")
                 }
-                .foregroundColor(.gray)
-                .brightness(0.42)
-                .padding(6)
-                Image(mNISTImage: queryInput)?
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                Spacer()
+                Text("\(queryResult == nil ? "-" : queryResult!.description)")
+                    .foregroundColor(queryResult == nil || queryResult == queryTarget ? .primary : .red)
             }
-        }
-        HStack {
-            Image(systemName: "figure.strengthtraining.traditional")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-            Button {
-                Task { @MainActor in
-                    if viewModel.miniBatchSize == 1 {
-                        // SGD with arbitrary number of samples
-                        await viewModel.train(startWithSample: viewModel.samplesTrained, count: 100)
-                    } else {
-                        // mini-batch GD with size as configured
-                        await viewModel.train(startWithBatch: viewModel.batchesTrained, count: 1)
+            .padding()
+            .background(.white)
+            .background(in: RoundedRectangle(cornerRadius: 12))
+            Divider()
+            HStack {
+                VStack {
+                    HStack {
+                        Text("Input")
+                        Spacer()
+                        Button {
+                            canvas.drawing = PKDrawing()
+                            queryResult = nil
+                        } label: {
+                            Image(systemName: "xmark.app")
+                        }
+                    }
+                    ZStack {
+                        Image(systemName: "square.and.pencil")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .padding()
+                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(.primary, lineWidth: 1))
+                            .foregroundColor(Color(UIColor.secondarySystemBackground))
+                        CanvasView(canvas: $canvas, mNISTImage: $queryInput)
+                            .aspectRatio(1, contentMode: .fit)
+                            .onChange(of: queryInput) { input in
+                                queryResult = viewModel.query(sample: queryInput)
+                            }
                     }
                 }
-            } label: {
-                Image(systemName: "doc.on.doc")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            }
-            Button {
-                Task { @MainActor in
-                    await viewModel.trainAll()
+                .frame(minWidth: 0, maxWidth: .infinity)
+                VStack {
+                    Text("Image")
+                    ZStack {
+                        Image(systemName: "sparkle.magnifyingglass")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .padding()
+                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(.primary, lineWidth: 1))
+                            .foregroundColor(Color(UIColor.secondarySystemBackground))
+                        Image(mNISTImage: queryInput)?
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                    }
                 }
-            } label: {
-                Image(systemName: "book.closed")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
+                .frame(minWidth: 0, maxWidth: .infinity)
+            }
+            .padding()
+            .background(.white)
+            .background(in: RoundedRectangle(cornerRadius: 12))
+        }
+        .padding()
+        .background(Color(UIColor.secondarySystemBackground))
+        VStack {
+            Form {
+                Section {
+                    HStack {
+                        Button {
+                            guard
+                                let folder = getAppFolder()
+                            else { return }
+                            viewModel.dataset.load(from: folder)
+                        } label: {
+                            Label("Reload MNIST", systemImage: "arrow.counterclockwise.icloud")
+                        }
+                        Spacer()
+                        HStack {
+                            Circle().foregroundColor(viewModel.dataset.state[.images(.train)]?.color)
+                            Circle().foregroundColor(viewModel.dataset.state[.labels(.train)]?.color)
+                            Circle().foregroundColor(viewModel.dataset.state[.images(.test)]?.color)
+                            Circle().foregroundColor(viewModel.dataset.state[.labels(.test)]?.color)
+                        }
+                        .frame(height: 24)
+                    }
+                } header: {
+                    HStack {
+                        Label("DATASET", systemImage: "chart.bar").font(.headline)
+                        Spacer()
+                    }
+                }
+                Section {
+                    HStack {
+                        Text("Mini-batch size")
+                        Spacer()
+                        Text("\(viewModel.miniBatchSize)")
+                    }
+                    HStack {
+                        Text("Learning rate")
+                        Spacer()
+                        Text("0.3")
+                    }
+                } header: {
+                    HStack {
+                        Label("NN CONFIGURATION", systemImage: "gearshape").font(.headline)
+                        Spacer()
+                    }
+                }
+                Section {
+                    HStack {
+                        Text("Epochs trained so far")
+                        Spacer()
+                        Text("\(viewModel.epochsTrained)")
+                    }
+                    HStack {
+                        Text("Duration of last epoch")
+                        Spacer()
+                        Text(DateComponentsFormatter().string(from: viewModel.duration)!)
+                    }
+                } header: {
+                    HStack {
+                        Label("NN TRAINING", systemImage: "dumbbell").font(.headline)
+                        Spacer()
+                    }
+                }
+                Section {
+                    HStack {
+                        Button {
+                            Task { @MainActor in
+                                if viewModel.miniBatchSize == 1 {
+                                    // SGD with arbitrary number of samples
+                                    await viewModel.train(startWithSample: viewModel.samplesTrained, count: 100)
+                                } else {
+                                    // mini-batch GD with size as configured
+                                    await viewModel.train(startWithBatch: viewModel.batchesTrained, count: 1)
+                                }
+                            }
+                        } label: {
+                            Label("Train next mini-batch", systemImage: "figure.strengthtraining.traditional")
+                        }
+                        Spacer()
+                    } 
+                    HStack {
+                        Button {
+                            Task { @MainActor in
+                                await viewModel.trainAll()
+                            }
+                        } label: {
+                            Label("Train another epoch", systemImage: "figure.strengthtraining.traditional")
+                        }
+                        Spacer()
+                    }
+                    HStack {
+                        Button {
+                            Task { @MainActor in
+                                await viewModel.queryAll()
+                            }
+                        } label: {
+                            Label("NN Performance", systemImage: "sparkle.magnifyingglass")
+                        }
+                        Spacer()
+                        Text(String(format: "%.4f", viewModel.performance))
+                    }
+                    HStack {
+                        Button {
+                            isImporting = true
+                        } label: {
+                            Label("Import model from Files", systemImage: "square.and.arrow.up")
+                        }
+                        .fileImporter(isPresented: $isImporting,
+                                      allowedContentTypes: [.nnxd], allowsMultipleSelection: false) { result in
+                            switch result {
+                            case .success(let url):
+                                do {
+                                    let content = try Data(contentsOf: url[0])
+                                    guard
+                                        let network = Network(from: content)
+                                    else {
+                                        self.error = .nndxDecode(url[0])
+                                        return
+                                    }
+                                    viewModel.network = network
+                                } catch {
+                                    self.error = .nndxRead(url[0], error)
+                                }
+                            case .failure(let error):
+                                self.error = .nndxLoad(error)
+                            }
+                        }
+                        Spacer()
+                    }
+                    HStack {
+                        Button {
+                            isExporting = true
+                        } label: {
+                            Label("Export model to Files", systemImage: "square.and.arrow.down")
+                        }
+                        .fileExporter(isPresented: $isExporting,
+                                      document: NetworkExchangeDocument(viewModel.network.encode),
+                                      contentType: .nnxd, defaultFilename: "Untitled") { result in
+                            switch result {
+                            case .success:
+                                break
+                            case .failure(let error):
+                                self.error = .nndxSave(error)
+                            }
+                        }
+                        Spacer()
+                    }
+                } footer: {
+                    HStack {
+                        Spacer()
+                        Button("Reset") {
+                            viewModel.reset()
+                            queryInput = []
+                            queryTarget = nil
+                            queryResult = nil
+                        }
+                        .foregroundColor(.red)
+                        Spacer()
+                    }
+                    .padding()
+                }
             }
         }
-        HStack {
-            Image(systemName: "sparkle.magnifyingglass")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-            Button {
-                guard
-                    let max = viewModel.dataset.subsets[.images(.test)]?.count
-                else { return }
-                let index = Int.random(in: 0..<max)
-                queryInput = (viewModel.dataset.subsets[.images(.test)] as! [[UInt8]])[index]
-                var result: Int
-                var target: Int
-                (result, target) = viewModel.query(sample: index)
-                queryResultCorrect = result == target
-            } label: {
-                Image(systemName: "doc")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            }
-            Button {
-                Task { @MainActor in
-                    await viewModel.queryAll()
-                }
-            } label: {
-                Image(systemName: "book.closed")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            }
-        }
-        NetworkExchangeView(viewModel: viewModel)
-        QueryView(viewModel: viewModel)
     }
 }
 
@@ -151,7 +293,7 @@ class NetworkViewModel: ObservableObject {
     private var samplesQueried = [Int]()
     @Published var batchesTrained = 0
     
-    @Published var epochsFinished = 0
+    @Published var epochsTrained = 0
     @Published var performance: Float = 0
     
     @Published var progress: Float = 0 // 0...1
@@ -211,7 +353,7 @@ class NetworkViewModel: ObservableObject {
         } else {
             await train(startWithBatch: 0, count: count / miniBatchSize)
         }
-        epochsFinished += 1
+        epochsTrained += 1
     }
     
     func train(startWithSample index: Int, count: Int) async -> Void {
@@ -284,7 +426,7 @@ class NetworkViewModel: ObservableObject {
         network = GenericFactory.create(NetworkFactory(), defaultConfig)!
         samplesTrained = 0
         batchesTrained = 0
-        epochsFinished = 0
+        epochsTrained = 0
         performance = 0
         duration = 0
     }
@@ -329,14 +471,14 @@ struct NetworkExchangeDocument: FileDocument {
     }
 }
 
-enum NetworkExchangeViewError: Error {
+enum NetworkExchangeError: Error {
     case nndxSave(Error)
     case nndxLoad(Error)
     case nndxRead(URL, Error)
     case nndxDecode(URL)
 }
 
-extension NetworkExchangeViewError {
+extension NetworkExchangeError {
     var description: String {
         switch self {
         case .nndxSave(let error):
@@ -347,67 +489,6 @@ extension NetworkExchangeViewError {
             return "read NNDX file \(url) failed with error \(error)"
         case .nndxDecode(let url):
             return "decode NNDX file \(url) failed"
-        }
-    }
-}
-
-struct NetworkExchangeView: View {
-    var viewModel: NetworkViewModel
-    
-    @State private var error: NetworkExchangeViewError? = nil
-    
-    @State private var isExporting = false
-    @State private var isImporting = false
-    
-    var body: some View {
-        HStack {
-            Image(systemName: "externaldrive")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-            Button {
-                isExporting = true
-            } label: {
-                Image(systemName: "square.and.arrow.down")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            }
-            .fileExporter(isPresented: $isExporting,
-                          document: NetworkExchangeDocument(viewModel.network.encode),
-                          contentType: .nnxd, defaultFilename: "Untitled") { result in
-                switch result {
-                case .success:
-                    break
-                case .failure(let error):
-                    self.error = .nndxSave(error)
-                }
-            }
-            Button {
-                isImporting = true
-            } label: {
-                Image(systemName: "square.and.arrow.up")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            }
-            .fileImporter(isPresented: $isImporting,
-                          allowedContentTypes: [.nnxd], allowsMultipleSelection: false) { result in
-                switch result {
-                case .success(let url):
-                    do {
-                        let content = try Data(contentsOf: url[0])
-                        guard
-                            let network = Network(from: content)
-                        else {
-                            self.error = .nndxDecode(url[0])
-                            return
-                        }
-                        viewModel.network = network
-                    } catch {
-                        self.error = .nndxRead(url[0], error)
-                    }
-                case .failure(let error):
-                    self.error = .nndxLoad(error)
-                }
-            }
         }
     }
 }
