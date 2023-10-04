@@ -7,6 +7,8 @@ struct NetworkView: View {
     @ObservedObject private var viewModel: NetworkViewModel
 
     @State private var canvas = PKCanvasView()
+    @State private var canvasInput: [UInt8] = []
+    
     @State private var queryInput: [UInt8] = []
     @State private var queryResult: Int?
     @State private var queryTarget: Int?
@@ -35,7 +37,7 @@ struct NetworkView: View {
                     queryInput = (viewModel.dataset.subsets[.images(.test)] as! [[UInt8]])[index]
                     (queryResult, queryTarget) = viewModel.query(sample: index)
                 } label: {
-                    Label("Random testset number", systemImage: "sparkle.magnifyingglass")
+                    Label("Random testset image", systemImage: "sparkle.magnifyingglass")
                 }
                 Spacer()
                 Text("\(queryResult == nil ? "-" : queryResult!.description)")
@@ -44,11 +46,10 @@ struct NetworkView: View {
             .padding()
             .background(.white)
             .background(in: RoundedRectangle(cornerRadius: 12))
-            Divider()
             HStack {
                 VStack {
                     HStack {
-                        Text("Input")
+                        Text("Query sketch")
                         Spacer()
                         Button {
                             canvas.drawing = PKDrawing()
@@ -64,27 +65,30 @@ struct NetworkView: View {
                             .padding()
                             .overlay(RoundedRectangle(cornerRadius: 4).stroke(.primary, lineWidth: 1))
                             .foregroundColor(Color(UIColor.secondarySystemBackground))
-                        CanvasView(canvas: $canvas, mNISTImage: $queryInput)
+                        CanvasView(canvas: $canvas, mNISTImage: $canvasInput)
                             .aspectRatio(1, contentMode: .fit)
-                            .onChange(of: queryInput) { input in
+                            .onChange(of: canvasInput) { input in
+                                queryInput = canvasInput
                                 queryResult = viewModel.query(sample: queryInput)
                             }
                     }
                 }
                 .frame(minWidth: 0, maxWidth: .infinity)
                 VStack {
-                    Text("Image")
+                    Text("Query image")
                     ZStack {
-                        Image(systemName: "sparkle.magnifyingglass")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .padding()
-                            .overlay(RoundedRectangle(cornerRadius: 4).stroke(.primary, lineWidth: 1))
-                            .foregroundColor(Color(UIColor.secondarySystemBackground))
-                        Image(mNISTImage: queryInput)?
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
+                        Group {
+                            Image(systemName: "sparkle.magnifyingglass")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .padding()
+                            Image(mNISTImage: queryInput)?
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .colorInvert()
+                        }
+                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(.primary, lineWidth: 1))
+                        .foregroundColor(Color(UIColor.secondarySystemBackground))
                     }
                 }
                 .frame(minWidth: 0, maxWidth: .infinity)
