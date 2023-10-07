@@ -3,6 +3,31 @@ import Foundation
 
 import DataCompression
 
+struct MNISTDatasetView: View {
+    @ObservedObject var viewModel: MNISTDatasetViewModel
+    
+    var body: some View {
+        HStack {
+            Button {
+                guard
+                    let folder = getAppFolder()
+                else { return }
+                viewModel.load(from: folder)
+            } label: {
+                Label("Reload MNIST", systemImage: "arrow.counterclockwise.icloud")
+            }
+            Spacer()
+            HStack {
+                Circle().foregroundColor(viewModel.states[.images(.train)]?.color)
+                Circle().foregroundColor(viewModel.states[.labels(.train)]?.color)
+                Circle().foregroundColor(viewModel.states[.images(.test)]?.color)
+                Circle().foregroundColor(viewModel.states[.labels(.test)]?.color)
+            }
+            .frame(height: 24)
+        }
+    }
+}
+
 protocol MNISTEntity { }
 typealias MNISTImage = [UInt8]
 typealias MNISTLabel = UInt8
@@ -53,14 +78,14 @@ extension MNISTError {
     }
 }
 
-class MNISTDataset: ObservableObject {
+class MNISTDatasetViewModel: ObservableObject {
     private var lock = NSLock()
     
     @Published private(set) var subsets: [MNISTSubset : [MNISTEntity]] = [:]
-    @Published private(set) var state: [MNISTSubset : MNISTState] = [:]
+    @Published private(set) var states: [MNISTSubset : MNISTState] = [:]
     
     init(in folder: URL?) {
-        MNISTSubset.all.forEach { state[$0] = .missing }
+        MNISTSubset.all.forEach { states[$0] = .missing }
         if let folder = folder {
             load(from: folder)
         }
@@ -70,7 +95,7 @@ class MNISTDataset: ObservableObject {
         let baseURL = "http://yann.lecun.com/exdb/mnist/"
         let load = { [self] (subset: (MNISTSubset, URL), error: Error?) -> Void in
             if let error = error {
-                synchronize { state[subset.0] = .failed(error) }
+                synchronize { states[subset.0] = .failed(error) }
             }
             Task { @MainActor in
                 do {
@@ -83,15 +108,15 @@ class MNISTDataset: ObservableObject {
                     }
                     synchronize {
                         subsets[subset.0] = entity
-                        state[subset.0] = .loaded
+                        states[subset.0] = .loaded
                     }
                 } catch {
-                    state[subset.0] = .failed(error)
+                    synchronize { states [subset.0] = .failed(error) }
                 }
             }
         }
         MNISTSubset.all.forEach { subset in
-            synchronize { state[subset] = .loading }
+            synchronize { states[subset] = .loading }
             let itemUrl = folder.appending(path: subset.name)
             if FileManager.default.fileExists(atPath: itemUrl.path) {
                 load((subset, itemUrl), nil)

@@ -1,10 +1,8 @@
 import SwiftUI
 
 struct MYONNView: View {
-    @StateObject private var dataset = MNISTDataset(in: getAppFolder())
-    
     var body: some View {
-        NetworkView(config: defaultConfig, dataset: dataset)
+        NetworkView(config: defaultConfig)
     }
 }
 

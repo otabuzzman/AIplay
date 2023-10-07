@@ -50,7 +50,7 @@ Apps used on iPad
 |FolderPicker.swift|A view. The function is in the name.|
 |GaussianDistribution.swift|A class to provide random floats with normal distribution.|
 |Matrix.swift|A somewhat pimped Array for matrix operations. Leverages vDSP.|
-|MNISTDataset.swift|MVVM to put MNIST on disk.|
+|MNISTDatasetView.swift|MVVM to put MNIST on disk.|
 |MYONNView.swift|The top-level view.|
 |Network.swift|The network implementation from MYONN book. Also includes Metal compute shader code.|
 |NetworkView.swift|MVVM to make use of network in SwiftUI.|

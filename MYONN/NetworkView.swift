@@ -102,24 +102,8 @@ struct NetworkView: View {
         VStack {
             Form {
                 Section {
-                    HStack {
-                        Button {
-                            guard
-                                let folder = getAppFolder()
-                            else { return }
-                            viewModel.dataset.load(from: folder)
-                        } label: {
-                            Label("Reload MNIST", systemImage: "arrow.counterclockwise.icloud")
-                        }
-                        Spacer()
-                        HStack {
-                            Circle().foregroundColor(viewModel.dataset.state[.images(.train)]?.color)
-                            Circle().foregroundColor(viewModel.dataset.state[.labels(.train)]?.color)
-                            Circle().foregroundColor(viewModel.dataset.state[.images(.test)]?.color)
-                            Circle().foregroundColor(viewModel.dataset.state[.labels(.test)]?.color)
-                        }
-                        .frame(height: 24)
-                    }
+                    // https://rhonabwy.com/2021/02/13/nested-observable-objects-in-swiftui/
+                    MNISTDatasetView(viewModel: viewModel.dataset)
                 } header: {
                     HStack {
                         Label("DATASET", systemImage: "chart.bar").font(.headline)
@@ -264,11 +248,11 @@ struct NetworkView: View {
 }
 
 extension NetworkView {
-    init?(config: NetworkConfig, dataset: MNISTDataset) {
+    init?(config: NetworkConfig) {
         guard
             let network = GenericFactory.create(NetworkFactory(), config)
         else { return nil }
-        viewModel = NetworkViewModel(network, dataset)
+        viewModel = NetworkViewModel(network, MNISTDatasetViewModel(in: getAppFolder()))
     }
 }
 
@@ -289,7 +273,7 @@ extension MNISTState {
 
 class NetworkViewModel: ObservableObject {
     var network: Network
-    var dataset: MNISTDataset
+    var dataset: MNISTDatasetViewModel
     
     private(set) var miniBatchSize = 30
     
@@ -305,7 +289,7 @@ class NetworkViewModel: ObservableObject {
     
     @Published var duration: TimeInterval = 0
     
-    init(_ network: Network, _ dataset:  MNISTDataset) {
+    init(_ network: Network, _ dataset: MNISTDatasetViewModel) {
         self.network = network
         self.dataset = dataset
     }
