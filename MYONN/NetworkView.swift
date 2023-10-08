@@ -5,7 +5,10 @@ import UniformTypeIdentifiers
 
 struct NetworkView: View {
     @ObservedObject private var viewModel: NetworkViewModel
-
+    
+    @State private var longRunTask: Task<Void, Never>?
+    @State private var longRunBusy = false
+    
     @State private var canvas = PKCanvasView()
     @State private var canvasInput: [UInt8] = []
     
@@ -104,6 +107,7 @@ struct NetworkView: View {
                 Section {
                     // https://rhonabwy.com/2021/02/13/nested-observable-objects-in-swiftui/
                     MNISTDatasetView(viewModel: viewModel.dataset)
+                        .disabled(longRunBusy)
                 } header: {
                     HStack {
                         Label("DATASET", systemImage: "chart.bar").font(.headline)
@@ -145,97 +149,110 @@ struct NetworkView: View {
                     }
                 }
                 Section {
-                    HStack {
-                        Button {
-                            Task { @MainActor in
-                                if viewModel.miniBatchSize == 1 {
-                                    // SGD with arbitrary number of samples
-                                    await viewModel.train(startWithSample: viewModel.samplesTrained, count: 100)
-                                } else {
-                                    // mini-batch GD with size as configured
-                                    await viewModel.train(startWithBatch: viewModel.batchesTrained, count: 1)
-                                }
-                            }
-                        } label: {
-                            Label("Train next mini-batch", systemImage: "figure.strengthtraining.traditional")
-                        }
-                        Spacer()
-                    } 
-                    HStack {
-                        Button {
-                            Task { @MainActor in
-                                await viewModel.trainAll()
-                            }
-                        } label: {
-                            Label("Train another epoch", systemImage: "figure.strengthtraining.traditional")
-                        }
-                        Spacer()
-                    }
-                    HStack {
-                        Button {
-                            Task { @MainActor in
-                                await viewModel.queryAll()
-                            }
-                        } label: {
-                            Label("NN Performance", systemImage: "sparkle.magnifyingglass")
-                        }
-                        Spacer()
-                        Text(String(format: "%.4f", viewModel.performance))
-                    }
-                    HStack {
-                        Button {
-                            isImporting = true
-                        } label: {
-                            Label("Import model from Files", systemImage: "square.and.arrow.up")
-                        }
-                        .fileImporter(isPresented: $isImporting,
-                                      allowedContentTypes: [.nnxd], allowsMultipleSelection: false) { result in
-                            switch result {
-                            case .success(let url):
-                                do {
-                                    let content = try Data(contentsOf: url[0])
-                                    guard
-                                        let network = Network(from: content)
-                                    else {
-                                        self.error = .nndxDecode(url[0])
-                                        return
+                    Group {
+                        HStack {
+                            Button {
+                                longRunTask = Task { @MainActor in
+                                    longRunBusy = true
+                                    if viewModel.miniBatchSize == 1 {
+                                        // SGD with arbitrary number of samples
+                                        await viewModel.train(startWithSample: viewModel.samplesTrained, count: 100)
+                                    } else {
+                                        // mini-batch GD with size as configured
+                                        await viewModel.train(startWithBatch: viewModel.batchesTrained, count: 1)
                                     }
-                                    viewModel.network = network
-                                } catch {
-                                    self.error = .nndxRead(url[0], error)
+                                    longRunBusy = false
                                 }
-                            case .failure(let error):
-                                self.error = .nndxLoad(error)
+                            } label: {
+                                Label("Train next mini-batch", systemImage: "figure.strengthtraining.traditional")
                             }
-                        }
-                        Spacer()
-                    }
-                    HStack {
-                        Button {
-                            isExporting = true
-                        } label: {
-                            Label("Export model to Files", systemImage: "square.and.arrow.down")
-                        }
-                        .fileExporter(isPresented: $isExporting,
-                                      document: NetworkExchangeDocument(viewModel.network.encode),
-                                      contentType: .nnxd, defaultFilename: "Untitled") { result in
-                            switch result {
-                            case .success:
-                                break
-                            case .failure(let error):
-                                self.error = .nndxSave(error)
+                            Spacer()
+                        } 
+                        HStack {
+                            Button {
+                                longRunTask = Task { @MainActor in
+                                    longRunBusy = true
+                                    await viewModel.trainAll()
+                                    longRunBusy = false
+                                }
+                            } label: {
+                                Label("Train another epoch", systemImage: "figure.strengthtraining.traditional")
                             }
+                            Spacer()
                         }
-                        Spacer()
+                        HStack {
+                            Button {
+                                longRunTask = Task { @MainActor in
+                                    longRunBusy = true
+                                    await viewModel.queryAll()
+                                    longRunBusy = false
+                                }
+                            } label: {
+                                Label("NN Performance", systemImage: "sparkle.magnifyingglass")
+                            }
+                            Spacer()
+                            Text(String(format: "%.4f", viewModel.performance))
+                        }
+                        HStack {
+                            Button {
+                                isImporting = true
+                            } label: {
+                                Label("Import model from Files", systemImage: "square.and.arrow.up")
+                            }
+                            .fileImporter(isPresented: $isImporting,
+                                          allowedContentTypes: [.nnxd], allowsMultipleSelection: false) { result in
+                                switch result {
+                                case .success(let url):
+                                    do {
+                                        let content = try Data(contentsOf: url[0])
+                                        guard
+                                            let network = Network(from: content)
+                                        else {
+                                            self.error = .nndxDecode(url[0])
+                                            return
+                                        }
+                                        viewModel.network = network
+                                    } catch {
+                                        self.error = .nndxRead(url[0], error)
+                                    }
+                                case .failure(let error):
+                                    self.error = .nndxLoad(error)
+                                }
+                            }
+                            Spacer()
+                        }
+                        HStack {
+                            Button {
+                                isExporting = true
+                            } label: {
+                                Label("Export model to Files", systemImage: "square.and.arrow.down")
+                            }
+                            .fileExporter(isPresented: $isExporting,
+                                          document: NetworkExchangeDocument(viewModel.network.encode),
+                                          contentType: .nnxd, defaultFilename: "Untitled") { result in
+                                switch result {
+                                case .success:
+                                    break
+                                case .failure(let error):
+                                    self.error = .nndxSave(error)
+                                }
+                            }
+                            Spacer()
+                        }
                     }
+                    .disabled(longRunBusy)
                 } footer: {
                     HStack {
                         Spacer()
                         Button("Reset") {
-                            viewModel.reset()
-                            queryInput = []
-                            queryTarget = nil
-                            queryResult = nil
+                            Task { @MainActor in
+                                longRunTask?.cancel()
+                                let _ = await longRunTask?.value
+                                viewModel.reset()
+                                queryInput = []
+                                queryTarget = nil
+                                queryResult = nil
+                            }
                         }
                         .foregroundColor(.red)
                         Spacer()
@@ -308,6 +325,9 @@ class NetworkViewModel: ObservableObject {
             if progress > self.progress + progressIncrement {
                 self.progress = progress
             }
+            do {
+                try Task.checkCancellation()
+            } catch { return }
         }
         Task { @MainActor in
             try await Task.sleep(nanoseconds: 1_000_000_000)
@@ -355,6 +375,9 @@ class NetworkViewModel: ObservableObject {
             if progress > self.progress + progressIncrement {
                 self.progress = progress
             }
+            do {
+                try Task.checkCancellation()
+            } catch { return }
         }
         let t1 = Date.timeIntervalSinceReferenceDate
         duration = t1 - t0
@@ -399,6 +422,9 @@ class NetworkViewModel: ObservableObject {
             if progress > self.progress + progressIncrement {
                 self.progress = progress
             }
+            do {
+                try Task.checkCancellation()
+            } catch { return }
         }
         let t1 = Date.timeIntervalSinceReferenceDate
         duration = t1 - t0
@@ -416,6 +442,7 @@ class NetworkViewModel: ObservableObject {
         batchesTrained = 0
         epochsTrained = 0
         performance = 0
+        progress = 0
         duration = 0
     }
 }
