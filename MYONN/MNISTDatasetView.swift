@@ -5,17 +5,14 @@ import DataCompression
 
 struct MNISTDatasetView: View {
     @ObservedObject var viewModel: MNISTDatasetViewModel
-	@Binding var loading: Bool
-    
+
     var body: some View {
         HStack {
             Button {
                 guard
                     let folder = getAppFolder()
                 else { return }
-                loading = true
                 viewModel.load(from: folder)
-                loading = false
             } label: {
                 Label("Reload MNIST", systemImage: "arrow.counterclockwise.icloud")
             }
@@ -28,7 +25,6 @@ struct MNISTDatasetView: View {
             }
             .frame(height: 24)
         }
-        .disabled(loading)
     }
 }
 

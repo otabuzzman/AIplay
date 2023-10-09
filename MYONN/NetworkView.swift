@@ -8,7 +8,6 @@ struct NetworkView: View {
     
     @State private var longRunTask: Task<Void, Never>?
     @State private var longRunBusy = false
-    @State private var datasetBusy = false
     
     @State private var canvas = PKCanvasView()
     @State private var canvasInput: [UInt8] = []
@@ -107,7 +106,8 @@ struct NetworkView: View {
             Form {
                 Section {
                     // https://rhonabwy.com/2021/02/13/nested-observable-objects-in-swiftui/
-                    MNISTDatasetView(viewModel: viewModel.dataset, loading: $datasetBusy)
+                    MNISTDatasetView(viewModel: viewModel.dataset)
+                        .disabled(longRunBusy)
                 } header: {
                     HStack {
                         Label("DATASET", systemImage: "chart.bar").font(.headline)
@@ -257,7 +257,6 @@ struct NetworkView: View {
                         Spacer()
                     }
                     .padding()
-                    .disabled(datasetBusy)
                 }
             }
         }
