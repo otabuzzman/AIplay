@@ -5,6 +5,7 @@ import DataCompression
 
 struct MNISTDatasetView: View {
     @ObservedObject var viewModel: MNISTDatasetViewModel
+	@Binding var loading: Bool
     
     var body: some View {
         HStack {
@@ -12,27 +13,30 @@ struct MNISTDatasetView: View {
                 guard
                     let folder = getAppFolder()
                 else { return }
+                loading = true
                 viewModel.load(from: folder)
+                loading = false
             } label: {
                 Label("Reload MNIST", systemImage: "arrow.counterclockwise.icloud")
             }
             Spacer()
             HStack {
-                Circle().foregroundColor(viewModel.states[.images(.train)]?.color)
-                Circle().foregroundColor(viewModel.states[.labels(.train)]?.color)
-                Circle().foregroundColor(viewModel.states[.images(.test)]?.color)
-                Circle().foregroundColor(viewModel.states[.labels(.test)]?.color)
+                Circle().foregroundColor(viewModel.state[.images(.train)]?.color)
+                Circle().foregroundColor(viewModel.state[.labels(.train)]?.color)
+                Circle().foregroundColor(viewModel.state[.images(.test)]?.color)
+                Circle().foregroundColor(viewModel.state[.labels(.test)]?.color)
             }
             .frame(height: 24)
         }
+        .disabled(loading)
     }
 }
 
-protocol MNISTEntity { }
+protocol MNISTItem { }
 typealias MNISTImage = [UInt8]
 typealias MNISTLabel = UInt8
-extension MNISTImage: MNISTEntity { }
-extension MNISTLabel: MNISTEntity { }
+extension MNISTImage: MNISTItem { }
+extension MNISTLabel: MNISTItem { }
 
 enum MNISTSubset: Hashable {
     enum Purpose: String {
@@ -81,11 +85,11 @@ extension MNISTError {
 class MNISTDatasetViewModel: ObservableObject {
     private var lock = NSLock()
     
-    @Published private(set) var subsets: [MNISTSubset : [MNISTEntity]] = [:]
-    @Published private(set) var states: [MNISTSubset : MNISTState] = [:]
+    private(set) var items: [MNISTSubset : [MNISTItem]] = [:]
+    @Published private(set) var state: [MNISTSubset : MNISTState] = [:]
     
     init(in folder: URL?) {
-        MNISTSubset.all.forEach { states[$0] = .missing }
+        MNISTSubset.all.forEach { state[$0] = .missing }
         if let folder = folder {
             load(from: folder)
         }
@@ -95,28 +99,28 @@ class MNISTDatasetViewModel: ObservableObject {
         let baseURL = "http://yann.lecun.com/exdb/mnist/"
         let load = { [self] (subset: (MNISTSubset, URL), error: Error?) -> Void in
             if let error = error {
-                synchronize { states[subset.0] = .failed(error) }
+                synchronize { state[subset.0] = .failed(error) }
             }
             Task { @MainActor in
                 do {
-                    let entity: [MNISTEntity]
+                    let item: [MNISTItem]
                     switch subset.0 {
                     case .images:
-                        entity = try Self.readImages(from: subset.1)
+                        item = try Self.readImages(from: subset.1)
                     case .labels:
-                        entity = try Self.readLabels(from: subset.1)
+                        item = try Self.readLabels(from: subset.1)
                     }
                     synchronize {
-                        subsets[subset.0] = entity
-                        states[subset.0] = .loaded
+                        items[subset.0] = item
+                        state[subset.0] = .loaded
                     }
                 } catch {
-                    synchronize { states [subset.0] = .failed(error) }
+                    synchronize { state[subset.0] = .failed(error) }
                 }
             }
         }
+        MNISTSubset.all.forEach { state[$0] = .loading }
         MNISTSubset.all.forEach { subset in
-            synchronize { states[subset] = .loading }
             let itemUrl = folder.appending(path: subset.name)
             if FileManager.default.fileExists(atPath: itemUrl.path) {
                 load((subset, itemUrl), nil)
@@ -191,7 +195,7 @@ class MNISTDatasetViewModel: ObservableObject {
         task.resume()
     }
     
-    private static func readImages(from source: URL) throws -> [MNISTEntity] {
+    private static func readImages(from source: URL) throws -> [MNISTItem] {
         let handle = try FileHandle(forReadingFrom: source)
         var images = [MNISTImage]()
         
@@ -215,7 +219,7 @@ class MNISTDatasetViewModel: ObservableObject {
         return images
     }
     
-    private static func readLabels(from source: URL) throws -> [MNISTEntity] {
+    private static func readLabels(from source: URL) throws -> [MNISTItem] {
         let handle = try FileHandle(forReadingFrom: source)
         
         handle.seek(toFileOffset: 0)

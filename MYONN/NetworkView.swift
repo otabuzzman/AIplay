@@ -8,6 +8,7 @@ struct NetworkView: View {
     
     @State private var longRunTask: Task<Void, Never>?
     @State private var longRunBusy = false
+    @State private var datasetBusy = false
     
     @State private var canvas = PKCanvasView()
     @State private var canvasInput: [UInt8] = []
@@ -34,10 +35,10 @@ struct NetworkView: View {
             HStack {
                 Button {
                     guard
-                        let max = viewModel.dataset.subsets[.images(.test)]?.count
+                        let max = viewModel.dataset.items[.images(.test)]?.count
                     else { return }
                     let index = Int.random(in: 0..<max)
-                    queryInput = (viewModel.dataset.subsets[.images(.test)] as! [[UInt8]])[index]
+                    queryInput = (viewModel.dataset.items[.images(.test)] as! [[UInt8]])[index]
                     (queryResult, queryTarget) = viewModel.query(sample: index)
                 } label: {
                     Label("Random testset image", systemImage: "sparkle.magnifyingglass")
@@ -106,8 +107,7 @@ struct NetworkView: View {
             Form {
                 Section {
                     // https://rhonabwy.com/2021/02/13/nested-observable-objects-in-swiftui/
-                    MNISTDatasetView(viewModel: viewModel.dataset)
-                        .disabled(longRunBusy)
+                    MNISTDatasetView(viewModel: viewModel.dataset, loading: $datasetBusy)
                 } header: {
                     HStack {
                         Label("DATASET", systemImage: "chart.bar").font(.headline)
@@ -244,7 +244,7 @@ struct NetworkView: View {
                 } footer: {
                     HStack {
                         Spacer()
-                        Button("Reset") {
+                        Button("Reset", role: .destructive) {
                             Task { @MainActor in
                                 longRunTask?.cancel()
                                 let _ = await longRunTask?.value
@@ -254,10 +254,10 @@ struct NetworkView: View {
                                 queryResult = nil
                             }
                         }
-                        .foregroundColor(.red)
                         Spacer()
                     }
                     .padding()
+                    .disabled(datasetBusy)
                 }
             }
         }
@@ -312,7 +312,7 @@ class NetworkViewModel: ObservableObject {
     }
     
     func queryAll() async -> Void {
-        let sampleCount = dataset.subsets[.images(.test)]?.count ?? 0
+        let sampleCount = dataset.items[.images(.test)]?.count ?? 0
         samplesQueried = [Int](repeating: .zero, count: sampleCount)
         await query(startWithSample: 0, count: sampleCount)
         performance = samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
@@ -336,8 +336,8 @@ class NetworkViewModel: ObservableObject {
     }
     
     func query(sample index: Int) -> (Int, Int) {
-        let input = (dataset.subsets[.images(.test)] as! [[UInt8]])[index]
-        let target = (dataset.subsets[.labels(.test)] as! [UInt8])[index]
+        let input = (dataset.items[.images(.test)] as! [[UInt8]])[index]
+        let target = (dataset.items[.labels(.test)] as! [UInt8])[index]
         let result = query(sample: input)
         if samplesQueried.count > index {
             samplesQueried[index] = result == target ? 1 : 0
@@ -354,7 +354,7 @@ class NetworkViewModel: ObservableObject {
     
     func trainAll() async -> Void {
         guard
-            let count = dataset.subsets[.images(.train)]?.count
+            let count = dataset.items[.images(.train)]?.count
         else { return }
         if miniBatchSize == 1 {
             await train(startWithSample: 0, count: count)
@@ -368,8 +368,8 @@ class NetworkViewModel: ObservableObject {
         duration = 0
         let t0 = Date.timeIntervalSinceReferenceDate
         for i in 0..<count {
-            let input = (dataset.subsets[.images(.train)] as! [[UInt8]])[index + i]
-            let target = (dataset.subsets[.labels(.train)] as! [UInt8])[index + i]
+            let input = (dataset.items[.images(.train)] as! [[UInt8]])[index + i]
+            let target = (dataset.items[.labels(.train)] as! [UInt8])[index + i]
             train(sample: input, target: target)
             let progress = Float(i + 1) / Float(count)
             if progress > self.progress + progressIncrement {
@@ -404,13 +404,13 @@ class NetworkViewModel: ObservableObject {
         for i in 0..<count {
             let a = (index + i) * miniBatchSize
             let o = a + miniBatchSize
-            let input = (dataset.subsets[.images(.train)] as! [[UInt8]])[a..<o]
+            let input = (dataset.items[.images(.train)] as! [[UInt8]])[a..<o]
             let I = input.map {
                 Matrix<Float>(
                     rows: $0.count, columns: 1,
                     entries: $0.map { (Float($0) / 255.0 * 0.99) + 0.01 })
             }
-            let target = (dataset.subsets[.labels(.train)] as! [UInt8])[a..<o]
+            let target = (dataset.items[.labels(.train)] as! [UInt8])[a..<o]
             let T = target.map {
                 var target = Matrix<Float>(rows: 10, columns: 1)
                     .map { _ in 0.01 }
