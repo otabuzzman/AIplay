@@ -20,7 +20,7 @@ struct NetworkView: View {
     
     @State private var isExporting = false
     @State private var isImporting = false
-
+    
     var body: some View {
         ProgressView(value: viewModel.progress)
         VStack {
@@ -33,11 +33,9 @@ struct NetworkView: View {
             .padding(.bottom, 2)
             HStack {
                 Button {
-                    guard
-                        let max = viewModel.dataset.items[.images(.test)]?.count
-                    else { return }
-                    let index = Int.random(in: 0..<max)
-                    queryInput = (viewModel.dataset.items[.images(.test)] as! [[UInt8]])[index]
+                    let index = Int.random(in: 0..<viewModel.dataset.count(in: .test))
+                    let (input, _) = viewModel.dataset.fetch(index, from: .test)
+                    queryInput = input
                     (queryResult, queryTarget) = viewModel.query(sample: index)
                 } label: {
                     Label("Random testset image", systemImage: "sparkle.magnifyingglass")
@@ -73,6 +71,7 @@ struct NetworkView: View {
                             .onChange(of: canvasInput) { input in
                                 queryInput = canvasInput
                                 queryResult = viewModel.query(sample: queryInput)
+                                queryTarget = queryResult
                             }
                     }
                 }
@@ -311,7 +310,7 @@ class NetworkViewModel: ObservableObject {
     }
     
     func queryAll() async -> Void {
-        let sampleCount = dataset.items[.images(.test)]?.count ?? 0
+        let sampleCount = dataset.count(in: .test)
         samplesQueried = [Int](repeating: .zero, count: sampleCount)
         await query(startWithSample: 0, count: sampleCount)
         performance = samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
@@ -335,8 +334,7 @@ class NetworkViewModel: ObservableObject {
     }
     
     func query(sample index: Int) -> (Int, Int) {
-        let input = (dataset.items[.images(.test)] as! [[UInt8]])[index]
-        let target = (dataset.items[.labels(.test)] as! [UInt8])[index]
+        let (input, target) = dataset.fetch(index, from: .test)
         let result = query(sample: input)
         if samplesQueried.count > index {
             samplesQueried[index] = result == target ? 1 : 0
@@ -352,9 +350,8 @@ class NetworkViewModel: ObservableObject {
     }
     
     func trainAll() async -> Void {
-        guard
-            let count = dataset.items[.images(.train)]?.count
-        else { return }
+        dataset.shuffle()
+        let count = dataset.count(in: .train)
         if miniBatchSize == 1 {
             await train(startWithSample: 0, count: count)
         } else {
@@ -367,8 +364,7 @@ class NetworkViewModel: ObservableObject {
         duration = 0
         let t0 = Date.timeIntervalSinceReferenceDate
         for i in 0..<count {
-            let input = (dataset.items[.images(.train)] as! [[UInt8]])[index + i]
-            let target = (dataset.items[.labels(.train)] as! [UInt8])[index + i]
+            let (input, target) = dataset.fetch(index + 1, from: .train)
             train(sample: input, target: target)
             let progress = Float(i + 1) / Float(count)
             if progress > self.progress + progressIncrement {
@@ -403,13 +399,12 @@ class NetworkViewModel: ObservableObject {
         for i in 0..<count {
             let a = (index + i) * miniBatchSize
             let o = a + miniBatchSize
-            let input = (dataset.items[.images(.train)] as! [[UInt8]])[a..<o]
+            let (input, target) = dataset.fetch(a..<o, from: .train)
             let I = input.map {
                 Matrix<Float>(
                     rows: $0.count, columns: 1,
                     entries: $0.map { (Float($0) / 255.0 * 0.99) + 0.01 })
             }
-            let target = (dataset.items[.labels(.train)] as! [UInt8])[a..<o]
             let T = target.map {
                 var target = Matrix<Float>(rows: 10, columns: 1)
                     .map { _ in 0.01 }

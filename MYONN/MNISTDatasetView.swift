@@ -28,12 +28,6 @@ struct MNISTDatasetView: View {
     }
 }
 
-protocol MNISTItem { }
-typealias MNISTImage = [UInt8]
-typealias MNISTLabel = UInt8
-extension MNISTImage: MNISTItem { }
-extension MNISTLabel: MNISTItem { }
-
 enum MNISTSubset: Hashable {
     enum Purpose: String {
         case train = "train"
@@ -54,6 +48,13 @@ enum MNISTSubset: Hashable {
     
     static var all: [MNISTSubset] { [.images(.train), .labels(.train), .images(.test), .labels(.test)] }
 }
+
+protocol MNISTItem { }
+typealias MNISTImage = [UInt8]
+typealias MNISTLabel = UInt8
+extension MNISTImage: MNISTItem { }
+extension MNISTLabel: MNISTItem { }
+typealias MNISTTuple = (MNISTSubset, URL)
 
 enum MNISTState {
     case missing
@@ -81,7 +82,8 @@ extension MNISTError {
 class MNISTDatasetViewModel: ObservableObject {
     private var lock = NSLock()
     
-    private(set) var items: [MNISTSubset : [MNISTItem]] = [:]
+    private var trainsetIndex = Array(0..<60000)
+    private var items: [MNISTSubset : [MNISTItem]] = [:]
     @Published private(set) var state: [MNISTSubset : MNISTState] = [:]
     
     init(in folder: URL?) {
@@ -91,27 +93,55 @@ class MNISTDatasetViewModel: ObservableObject {
         }
     }
     
+    func count(in: MNISTSubset.Purpose) -> Int {
+        `in` == .train ? 60000 : 10000
+    }
+    
+    func fetch(_ index: Int, from: MNISTSubset.Purpose) -> (MNISTImage, MNISTLabel) {
+        let i = from == .train ? self.trainsetIndex[index] : index
+        let image = (items[.images(from)] as! [MNISTImage])[i]
+        let label = (items[.labels(from)] as! [MNISTLabel])[i]
+        return (image, label)
+    }
+    
+    func fetch(_ range: Range<Int>, from: MNISTSubset.Purpose) -> ([MNISTImage], [MNISTLabel]) {
+        var images: [MNISTImage]
+        var labels: [MNISTLabel]
+        if from == .train {
+            images = range.map { (items[.images(from)] as! [MNISTImage])[$0] }
+            labels = range.map { (items[.labels(from)] as! [MNISTLabel])[$0] }
+        } else {
+            images = (items[.images(from)] as! [MNISTImage])[range].map { $0 }
+            labels = (items[.labels(from)] as! [MNISTLabel])[range].map { $0 }
+        }
+        return (images, labels)
+    }
+    
+    func shuffle() -> Void {
+        trainsetIndex.shuffle()
+    }
+    
     func load(from folder: URL) -> Void {
         let baseURL = "http://yann.lecun.com/exdb/mnist/"
-        let load = { [self] (subset: (MNISTSubset, URL), error: Error?) -> Void in
+        let load = { [self] (tuple: MNISTTuple, error: Error?) -> Void in
             if let error = error {
-                synchronize { state[subset.0] = .failed(error) }
+                synchronize { state[tuple.0] = .failed(error) }
             }
             Task { @MainActor in
                 do {
                     let item: [MNISTItem]
-                    switch subset.0 {
+                    switch tuple.0 {
                     case .images:
-                        item = try Self.readImages(from: subset.1)
+                        item = try Self.readImages(from: tuple.1)
                     case .labels:
-                        item = try Self.readLabels(from: subset.1)
+                        item = try Self.readLabels(from: tuple.1)
                     }
                     synchronize {
-                        items[subset.0] = item
-                        state[subset.0] = .loaded
+                        items[tuple.0] = item
+                        state[tuple.0] = .loaded
                     }
                 } catch {
-                    synchronize { state[subset.0] = .failed(error) }
+                    synchronize { state[tuple.0] = .failed(error) }
                 }
             }
         }
