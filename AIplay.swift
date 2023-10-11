@@ -23,189 +23,49 @@ struct ContentView: View {
     }
 }
 
-struct AlternateView: View {
-    @State private var showAppInfo = false
-    
-    var body: some View {
-        HStack {
-            Label("AIplay", image: "npu")
-            Spacer()
-            Button {
-                showAppInfo.toggle()
-            } label: {
-                Image(systemName: "info.circle")
-            }
-        }
-        .font(.largeTitle)
-        .padding()
-        .sheet(isPresented: $showAppInfo) {
-            appInfo(isPresented: $showAppInfo)
-        }
-        ProgressView(value: 0)
-        VStack {
-            HStack { // mimic list section header look
-                Label("NN PREDICTION", systemImage: "wand.and.stars.inverse")
-                    .foregroundColor(.secondary).bold(true)
-                Spacer()
-            }
-            .padding(.leading, 12)
-            .padding(.bottom, 2)
-            HStack {
-                Button {
-                } label: {
-                    Label("Random testset number", systemImage: "sparkle.magnifyingglass")
-                }
-                Spacer()
-                Text("4")
-            }
-            .padding()
-            .background(.white)
-            .background(in: RoundedRectangle(cornerRadius: 12))
-            Divider()
-            HStack {
-                VStack {
-                    HStack {
-                        Text("Input")
-                        Spacer()
-                        Button {
-                        } label: {
-                            Image(systemName: "xmark.app")
-                        }
-                    }
-                    Image(systemName: "square.and.pencil")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .padding()
-                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(.primary, lineWidth: 1))
-                }
-                VStack {
-                    Text("Image")
-                    Image(systemName: "sparkle.magnifyingglass")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .padding()
-                        .overlay(RoundedRectangle(cornerRadius: 4).stroke(.primary, lineWidth: 1))
-                }
-            }
-            .padding()
-            .background(.white)
-            .background(in: RoundedRectangle(cornerRadius: 12))
-        }
-        .padding()
-        .background(Color(UIColor.secondarySystemBackground))
-        VStack {
-            Form {
-                Section {
-                    HStack {
-                        Button {
-                        } label: {
-                            Label("Reload MNIST", systemImage: "arrow.counterclockwise.icloud")
-                        }
-                        Spacer()
-                        HStack {
-                            Circle().foregroundColor(.gray)
-                            Circle().foregroundColor(.gray)
-                            Circle().foregroundColor(.gray)
-                            Circle().foregroundColor(.gray)
-                        }
-                        .frame(height: 24)
-                    }
-                } header: {
-                    HStack {
-                        Label("DATASET", systemImage: "chart.bar").font(.headline)
-                        Spacer()
-                    }
-                }
-                Section {
-                    HStack {
-                        Text("Mini-batch size")
-                        Spacer()
-                        Text("30")
-                    }
-                    HStack {
-                        Text("Learning rate")
-                        Spacer()
-                        Text("0.3")
-                    }
-                } header: {
-                    HStack {
-                        Label("NN CONFIGURATION", systemImage: "gearshape").font(.headline)
-                        Spacer()
-                    }
-                }
-                Section {
-                    HStack {
-                        Text("Epochs trained so far")
-                        Spacer()
-                        Text("0")
-                    }
-                    HStack {
-                        Text("Duration of last epoch")
-                        Spacer()
-                        Text(DateComponentsFormatter().string(from: 1920)!)
-                    }
-                } header: {
-                    HStack {
-                        Label("NN TRAINING", systemImage: "dumbbell").font(.headline)
-                        Spacer()
-                    }
-                }
-                Section {
-                    HStack {
-                        Button {
-                        } label: {
-                            Label("Train next mini-batch", systemImage: "figure.strengthtraining.traditional")
-                        }
-                        Spacer()
-                    } 
-                    HStack {
-                        Button {
-                        } label: {
-                            Label("Train another epoch", systemImage: "figure.strengthtraining.traditional")
-                        }
-                        Spacer()
-                    }
-                    HStack {
-                        Button {
-                        } label: {
-                            Label("NN Performance", systemImage: "sparkle.magnifyingglass")
-                        }
-                        Spacer()
-                        Text(String(format: "%.4f", 0.9442))
-                    }
-                    HStack {
-                        Button {
-                        } label: {
-                            Label("Import model from Files", systemImage: "square.and.arrow.up")
-                        }
-                        Spacer()
-                    }
-                    HStack {
-                        Button {
-                        } label: {
-                            Label("Export model to Files", systemImage: "square.and.arrow.down")
-                        }
-                        Spacer()
-                    }
-                } footer: {
-                    HStack {
-                        Spacer()
-                        Button("Reset") {
-                        }
-                        .foregroundColor(.red)
-                        Spacer()
-                    }
-                    .padding()
-                }
-            }
-        }
-    }
-}
-
 func appInfo(isPresented: Binding<Bool>) -> some View {
     let description = try! AttributedString(markdown:
             """
+            ### General
+            AIplay implements a neural network MVP. It predicts numbers from the MNIST dataset as well as handwritten input. The app is a showcase and does not have a configuration interface. Changing parameters is done in source code and therefore requires Xcode or Swift Playgrounds 4 (iPadOS).
+            
+            ### Usage
+            When first started, a file picker dialog opens to select a folder to save and load files.
+            
+            screenshot
+            
+            1. Basic information about the app and usage.
+            2. Progress indicator.
+            3. Predict a random image from the MNIST test dataset (contains 10000 items).
+            4. Prediction result. Turns red to indicate false prediction for test set item.
+            5. Display raw image used for prediction from dataset or handwritten.
+            6. Predict handwritten number input. Experimental feature. Input position in the sketch area and line width must correspond to MNIST. To get an idea have a look at some images from random MNIST test set prediction (3) in display area (5). To increase line width on larger displays (e.g. iPad or device held landscape) try drawing input multiple times.
+            7. Clear sketch area.
+            8. Reload the MNIST dataset into memory. Download the files and unzip if necessary. Save files to the app folder selected on first launch.
+            9. Per dataset-file state: grey if not present, yellow while loading, red on error and green on success. Circles from left to right correspond to files containing training images, training labels, test images and test labels respectively.
+            10. Mini-batch size (hard-coded).
+            11. Learning rate (hard-coded).
+            12. Number of epochs applied to current network.
+            13. Time required to train the most recent epoch.
+            14. Train network with next mini-batch from MNIST training set.
+            15. Train network with full MNIST training set (contains 60000 items). Expensive in terms of time and battery.
+            16. Query network with full MNIST test set and calculate performance.
+            17. Network performance (accuracy). Multiply by 100 to get percent.
+            18. Save current network (model) in Files app. Proprietary format.
+            19. Load network with a model from the Files app. Overwrites current network without warning.
+            20. Reset network without warning. Stops running training. 
+            
+            ### Engine compartment
+            The hard-coded configuration foresees 3 layers with 784 input nodes, 100 hidden nodes and 10 output nodes. The nodes are fully connected. The activation function is sigmoid. Gradient descent is stochastic (SGD) and mini-batch with a size of 30. Training in mini-batch mode leverages any available cores (featuring Swift Concurrency). A GPU implementation for applying the activation function is available (featuring Metal) but deactivated because the network is too small to gain performance benefits from it.
+            
+            ### Soap
+            In the early 1990s I read an article about backpropagation in a computer magazine. The author described the then still new method of Rummelhard et al. (1986) and implemented it with Turbo Pascal. I typed the program into my 386 and today forgot what came out. But I stayed true to the overarching theme, and when it became popular again in the 2010s with the availability of cheap, powerful GPUs, the idea of doing something with AI arose. Practical. I had read some papers and books about neural networks and machine learning and was fascinated by the simplicity of the underlying concepts - as far as I understood. With Swift Playgrounds 4 for iPadOS, a kind of lightweight Xcode for app development on the iPad, the barrier became very low that I finally started...
             """, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
+    // insert screenshot image
+    let screenshot = NSTextAttachment(image: UIImage(systemName: "plus.square")!)
+    let attachment = AttributedString("\(UnicodeScalar(NSTextAttachment.character)!)", attributes: AttributeContainer.attachment(screenshot))
+    description.replaceSubrange(description.range(of: "screenshot")!, with: attachment)
+    
     return infoView(isPresented: isPresented, Text(description))
 }
 
