@@ -24,17 +24,19 @@ struct ContentView: View {
 }
 
 func appInfo(isPresented: Binding<Bool>) -> some View {
-    let description = try! AttributedString(markdown:
+    let section00 = try! AttributedString(markdown:
             """
-            ### General
+            **General**
             AIplay implements a neural network MVP. It predicts numbers from the MNIST dataset as well as handwritten input. The app is a showcase and does not have a configuration interface. Changing parameters is done in source code and therefore requires Xcode or Swift Playgrounds 4 (iPadOS).
-            
-            ### Usage
+            """, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
+    let section00 = try! AttributedString(markdown:
+            """
+            **Usage**
             When first started, a file picker dialog opens to select a folder to save and load files.
-            
-            screenshot
-            
-            1. Basic information about the app and usage.
+            """, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
+    let section01 = try! AttributedString(markdown:
+            """
+            1. Basic information about the app and usage (this text).
             2. Progress indicator.
             3. Predict a random image from the MNIST test dataset (contains 10000 items).
             4. Prediction result. Turns red to indicate false prediction for test set item.
@@ -53,20 +55,27 @@ func appInfo(isPresented: Binding<Bool>) -> some View {
             17. Network performance (accuracy). Multiply by 100 to get percent.
             18. Save current network (model) in Files app. Proprietary format.
             19. Load network with a model from the Files app. Overwrites current network without warning.
-            20. Reset network without warning. Stops running training. 
-            
-            ### Engine compartment
+            20. Reset network without warning. Stops training in progress. 
+            """, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
+    for itm in 1...20 {
+        section01[section01.range(of: "\(item).")!].foregroundColor = .accentColor
+    }
+    let section02 = try! AttributedString(markdown:
+            """
+            **Engine compartment**
             The hard-coded configuration foresees 3 layers with 784 input nodes, 100 hidden nodes and 10 output nodes. The nodes are fully connected. The activation function is sigmoid. Gradient descent is stochastic (SGD) and mini-batch with a size of 30. Training in mini-batch mode leverages any available cores (featuring Swift Concurrency). A GPU implementation for applying the activation function is available (featuring Metal) but deactivated because the network is too small to gain performance benefits from it.
-            
-            ### Soap
+            """, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
+    let section03 = try! AttributedString(markdown:
+            """
+            **Soap**
             In the early 1990s I read an article about backpropagation in a computer magazine. The author described the then still new method of Rummelhard et al. (1986) and implemented it with Turbo Pascal. I typed the program into my 386 and today forgot what came out. But I stayed true to the overarching theme, and when it became popular again in the 2010s with the availability of cheap, powerful GPUs, the idea of doing something with AI arose. Practical. I had read some papers and books about neural networks and machine learning and was fascinated by the simplicity of the underlying concepts - as far as I understood. With Swift Playgrounds 4 for iPadOS, a kind of lightweight Xcode for app development on the iPad, the barrier became very low that I finally started...
             """, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
-    // insert screenshot image
-    let screenshot = NSTextAttachment(image: UIImage(systemName: "plus.square")!)
-    let attachment = AttributedString("\(UnicodeScalar(NSTextAttachment.character)!)", attributes: AttributeContainer.attachment(screenshot))
-    description.replaceSubrange(description.range(of: "screenshot")!, with: attachment)
-    
-    return infoView(isPresented: isPresented, Text(description))
+    return infoView(isPresented: isPresented, VStack {
+        Text(section00)
+        Text(section01)
+        Text(section02)
+        Text(section03)
+    })
 }
 
 func infoView(isPresented: Binding<Bool>, _ description: Text) -> some View {
