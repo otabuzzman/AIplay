@@ -187,10 +187,10 @@ struct NetworkView: View {
                                     longRunBusy = false
                                 }
                             } label: {
-                                Label("NN Performance", systemImage: "sparkle.magnifyingglass")
+                                Label("NN Accuracy", systemImage: "sparkle.magnifyingglass")
                             }
                             Spacer()
-                            Text(String(format: "%.4f", viewModel.performance))
+                            Text(String(format: "%.4f", viewModel.accuracy))
                         }
                         HStack {
                             Button {
@@ -297,7 +297,7 @@ class NetworkViewModel: ObservableObject {
     @Published var batchesTrained = 0
     
     @Published var epochsTrained = 0
-    @Published var performance: Float = 0
+    @Published var accuracy: Float = 0
     
     @Published var progress: Float = 0 // 0...1
     private let progressIncrement: Float = 0.01 // 0>..1
@@ -313,7 +313,7 @@ class NetworkViewModel: ObservableObject {
         let sampleCount = dataset.count(in: .test)
         samplesQueried = [Int](repeating: .zero, count: sampleCount)
         await query(startWithSample: 0, count: sampleCount)
-        performance = samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
+        accuracy = samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
     }
     
     func query(startWithSample index: Int, count: Int) async -> Void {
@@ -435,7 +435,7 @@ class NetworkViewModel: ObservableObject {
         samplesTrained = 0
         batchesTrained = 0
         epochsTrained = 0
-        performance = 0
+        accuracy = 0
         progress = 0
         duration = 0
     }

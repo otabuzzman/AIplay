@@ -9,32 +9,9 @@ The app features stochastic gradient descent (SGD) and mini-batch which is the d
 The hard-coded network configuration is 784/ 100/ 10 fully-connected input/ hidden/ output nodes with sigmoid activation.
 
 ### Usage
-On the first start the app asks for a folder to store the MNIST dataset. The four MNIST status indicators turn into green when all files have been downloaded and unzipped. Training the whole dataset took between 30 (mini-batch) and 45 (SGD) minutes on an iPad Pro 2022.
+The app is on [TestFlight](https://testflight.apple.com/join/M2uSLM1e) and provides some usage information when you tap the circled i in the top left corner. On the first start the app asks for a folder to store the MNIST dataset. The four MNIST status indicators turn into green when all files have been downloaded and unzipped. Training the whole dataset took between 30 (mini-batch) and 45 (SGD) minutes on an iPad Pro 2022.
 
 Input from the sketch area must be centered with some padding to the edges. Ideally, the images in the _Query input_ and _Query image_ areas will look quite similar.
-
-![](Assets.xcassets/screenshot.imageset/Image Asset.png)
-
-1. Basic information and usage (this text).
-2. Progress indicator.
-3. Query with random image from MNIST test set (contains 10000 items).
-4. Prediction result. Turns red to indicate false prediction for test set item.
-5. Display raw image of query input from dataset or handwritten.
-6. Query with handwritten number input. Experimental feature. Input position in the sketch area and line width must correspond to MNIST. To get an idea have a look at some images (5) when performing random MNIST test set queries (3). To increase line width on larger displays (e.g. iPad or device held landscape) try drawing input multiple times.
-7. Clear sketch area.
-8. Reload the MNIST dataset into memory. Downloads the files and unzips them if necessary. Saves files in the app folder selected on first launch.
-9. Per dataset-file state. Grey: present, yellow: loading, red: error and green: success. Circles from left to right correspond to files containing training images, training labels, test images and test labels respectively.
-10. Mini-batch size (hard-coded).
-11. Learning rate (hard-coded).
-12. Number of trainings with full training set (contains 60000 items) applied to current network.
-13. Time required to train the most recent epoch.
-14. Train network with next mini-batch from MNIST training set.
-15. Train network with full MNIST training set. Takes a couple of minutes. 
-16. Query network with full MNIST test set and calculate accuracy.
-17. Network accuracy. Multiply by 100 to get percent.
-18. Save current network (model) in Files app in a roprietary format.
-19. Load network with a model from the Files app. Overwrites current network without warning.
-20. Reset network without warning. Stops training in progress. 
 
 **Working**
 - MNIST loading/ training/ predicting
