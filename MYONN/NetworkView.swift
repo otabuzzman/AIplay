@@ -5,16 +5,19 @@ import UniformTypeIdentifiers
 
 struct NetworkView: View {
     @ObservedObject private var viewModel: NetworkViewModel
-    
+
     @State private var longRunTask: Task<Void, Never>?
     @State private var longRunBusy = false
     
     @State private var canvas = PKCanvasView()
-    @State private var canvasInput: [UInt8] = []
+    @State private var canvasInput = MNISTImage()
     
-    @State private var queryInput: [UInt8] = []
-    @State private var queryResult: Int?
+    @State private var queryInput = MNISTImage()
     @State private var queryTarget: Int?
+    @State private var resultReading: Int?
+    @State private var resultDetails: [(Int, Float)]?
+    
+    @State private var resultDetailsShow = false
     
     @State private var error: NetworkExchangeError?
     
@@ -34,19 +37,35 @@ struct NetworkView: View {
             HStack {
                 Button {
                     let index = Int.random(in: 0..<viewModel.dataset.count(in: .test))
-                    let (input, _) = viewModel.dataset.fetch(index, from: .test)
-                    queryInput = input
-                    (queryResult, queryTarget) = viewModel.query(sample: index)
+                    var target: MNISTLabel
+                    (queryInput, target) = viewModel.dataset.fetch(index, from: .test)
+                    queryTarget = Int(target)
+                    let result = viewModel.query(sample: queryInput)
+                    resultDetails = result.enumerated().sorted(by: { $0.element > $1.element })
+                    resultReading = resultDetails?[0].0
                 } label: {
                     Label("Random testset image", systemImage: "sparkle.magnifyingglass")
                 }
                 Spacer()
-                Text("\(queryResult == nil ? "-" : queryResult!.description)")
-                    .foregroundColor(queryResult == nil || queryResult == queryTarget ? .primary : .red)
+                Text("\(resultReading == nil ? "-" : resultReading!.description)")
+                    .foregroundColor(resultReading == nil || resultReading == queryTarget ? .primary : .red)
+                Button {
+                    withAnimation {
+                        resultDetailsShow.toggle()
+                    }
+                } label: {
+                    Image(systemName: resultDetailsShow ? "chevron.down" : "chart.bar.doc.horizontal")
+                }
+                .frame(minWidth: 18)
+                .disabled((resultDetails?.count ?? 0) == 0)
             }
             .padding()
             .background(.white)
             .background(in: RoundedRectangle(cornerRadius: 12))
+            if resultDetailsShow {
+                ResultDetailsView(resultDetails)
+                    .padding(.leading)
+            }
             HStack {
                 VStack {
                     HStack {
@@ -54,7 +73,7 @@ struct NetworkView: View {
                         Spacer()
                         Button {
                             canvas.drawing = PKDrawing()
-                            queryResult = nil
+                            resultReading = nil
                         } label: {
                             Image(systemName: "xmark.app")
                         }
@@ -70,8 +89,10 @@ struct NetworkView: View {
                             .aspectRatio(1, contentMode: .fit)
                             .onChange(of: canvasInput) { input in
                                 queryInput = canvasInput
-                                queryResult = viewModel.query(sample: queryInput)
-                                queryTarget = queryResult
+                                let result = viewModel.query(sample: queryInput)
+                                resultDetails = result.enumerated().sorted(by: { $0.element > $1.element })
+                                resultReading = resultDetails?[0].0
+                                queryTarget = resultReading
                             }
                     }
                 }
@@ -105,7 +126,7 @@ struct NetworkView: View {
             Form {
                 Section {
                     // https://rhonabwy.com/2021/02/13/nested-observable-objects-in-swiftui/
-                    MNISTDatasetView(viewModel: viewModel.dataset)
+                    MNISTDatasetView(viewModel: viewModel.dataset, busy: $longRunBusy)
                         .disabled(longRunBusy)
                 } header: {
                     HStack {
@@ -250,7 +271,11 @@ struct NetworkView: View {
                                 viewModel.reset()
                                 queryInput = []
                                 queryTarget = nil
-                                queryResult = nil
+                                withAnimation() {
+                                    resultDetailsShow = false
+                                }
+                                resultDetails = nil
+                                resultReading = nil
                             }
                         }
                         Spacer()
@@ -267,22 +292,7 @@ extension NetworkView {
         guard
             let network = GenericFactory.create(NetworkFactory(), config)
         else { return nil }
-        viewModel = NetworkViewModel(network, MNISTDatasetViewModel(in: getAppFolder()))
-    }
-}
-
-extension MNISTState {
-    var color: Color {
-        switch self {
-        case .missing:
-            return .gray
-        case .loading:
-            return .yellow
-        case .loaded:
-            return .green
-        case .failed:
-            return .red
-        }
+        viewModel = NetworkViewModel(network, MNISTDatasetViewModel())
     }
 }
 
@@ -292,17 +302,17 @@ class NetworkViewModel: ObservableObject {
     
     private(set) var miniBatchSize = 30
     
-    @Published var samplesTrained = 0  
+    @Published private(set) var samplesTrained = 0  
     private var samplesQueried = [Int]()
-    @Published var batchesTrained = 0
+    @Published private(set) var batchesTrained = 0
     
-    @Published var epochsTrained = 0
-    @Published var accuracy: Float = 0
+    @Published private(set) var epochsTrained = 0
+    @Published private(set) var accuracy: Float = 0
     
-    @Published var progress: Float = 0 // 0...1
+    @Published private(set) var progress: Float = 0 // 0...1
     private let progressIncrement: Float = 0.01 // 0>..1
     
-    @Published var duration: TimeInterval = 0
+    @Published private(set) var duration: TimeInterval = 0
     
     init(_ network: Network, _ dataset: MNISTDatasetViewModel) {
         self.network = network
@@ -316,9 +326,13 @@ class NetworkViewModel: ObservableObject {
         accuracy = samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
     }
     
-    func query(startWithSample index: Int, count: Int) async -> Void {
+    private func query(startWithSample index: Int, count: Int) async -> Void {
         for i in 0..<count {
-            _ = query(sample: i)
+            let (input, target) = dataset.fetch(i, from: .test)
+            let result = query(sample: input).maxElementIndex()! // probably save to unwrap
+            if samplesQueried.count > index {
+                samplesQueried[i] = result == target ? 1 : 0
+            }
             let progress = Float(i + 1) / Float(count)
             if progress > self.progress + progressIncrement {
                 self.progress = progress
@@ -333,20 +347,11 @@ class NetworkViewModel: ObservableObject {
         }
     }
     
-    func query(sample index: Int) -> (Int, Int) {
-        let (input, target) = dataset.fetch(index, from: .test)
-        let result = query(sample: input)
-        if samplesQueried.count > index {
-            samplesQueried[index] = result == target ? 1 : 0
-        }
-        return (result, Int(target))
-    }
-    
-    func query(sample: [UInt8]) -> Int {
+    func query(sample: MNISTImage) -> [Float] {
         let I = Matrix<Float>(
             rows: sample.count, columns: 1,
             entries: sample.map { (Float($0) / 255.0 * 0.99) + 0.01 }) // MYONN, p. 151 ff.
-        return network.query(for: I).maxValueIndex()
+        return network.query(for: I).entries
     }
     
     func trainAll() async -> Void {
@@ -383,7 +388,7 @@ class NetworkViewModel: ObservableObject {
         }
     }
     
-    func train(sample: [UInt8], target: UInt8) -> Void {
+    func train(sample: MNISTImage, target: MNISTLabel) -> Void {
         let I = Matrix<Float>(
             rows: sample.count, columns: 1,
             entries: sample.map { (Float($0) / 255.0 * 0.99) + 0.01 })
@@ -502,12 +507,37 @@ extension NetworkExchangeError {
     }
 }
 
-extension Matrix where Entry: Comparable {
-    func maxValueEntry() -> Entry {
-        entries.max(by: { $0 < $1 })! // probably save to force unwrap
+extension Array where Element: Comparable {
+    func maxElementValue() -> Element? {
+        self.max(by: { $0 < $1 })
     }
     
-    func maxValueIndex() -> Int {
-        entries.indices.max(by: { entries[$0] < entries[$1] })! // probably save to force unwrap
+    func maxElementIndex() -> Int? {
+        self.indices.max(by: { self[$0] < self[$1] })
+    }
+}
+
+struct ResultDetailsView: View {
+    let details: [(Int, Float)]
+    
+    init?(_ details: [(Int, Float)]?) {
+        guard
+            let details = details
+        else { return nil }
+        self.details = details
+    }
+    
+    var body: some View {
+        VStack(spacing: 2) {
+            ForEach(0..<details.count, id: \.self) { index in
+                HStack {
+                    Text("\(details[index].0)")
+                        .frame(minWidth: 12)
+                    ProgressView(value: details[index].1)
+                    Text("\(details[index].1)")
+                        .frame(minWidth: 96)
+                }
+            }
+        }
     }
 }

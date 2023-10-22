@@ -5,14 +5,25 @@ import DataCompression
 
 struct MNISTDatasetView: View {
     @ObservedObject var viewModel: MNISTDatasetViewModel
-
+    @Binding var busy: Bool
+        
+    @State private var folderPickerShow = getAppFolder() == nil
+    
+    private func load() -> Void {
+        Task {
+            guard
+                let folder = getAppFolder()
+            else { return }
+            busy = true
+            await viewModel.load(from: folder)
+            busy = false
+        }
+    }
+    
     var body: some View {
         HStack {
             Button {
-                guard
-                    let folder = getAppFolder()
-                else { return }
-                viewModel.load(from: folder)
+                load()
             } label: {
                 Label("Reload MNIST", systemImage: "arrow.counterclockwise.icloud")
             }
@@ -24,6 +35,22 @@ struct MNISTDatasetView: View {
                 Circle().foregroundColor(viewModel.state[.labels(.test)]?.color)
             }
             .frame(height: 24)
+        }
+        .onAppear {
+            load()
+        }
+        .sheet(isPresented: $folderPickerShow) {
+            FolderPicker { result in
+                switch result {
+                case .success(let folder):
+                    folder.accessSecurityScopedResource { folder in
+                        setAppFolder(url: folder)
+                    }
+                    load()
+                default: // .failure(let error)
+                    break
+                }
+            }
         }
     }
 }
@@ -54,13 +81,27 @@ typealias MNISTImage = [UInt8]
 typealias MNISTLabel = UInt8
 extension MNISTImage: MNISTItem { }
 extension MNISTLabel: MNISTItem { }
-typealias MNISTTuple = (MNISTSubset, URL)
 
 enum MNISTState {
     case missing
     case loading
     case loaded
     case failed(Error)
+}
+
+extension MNISTState {
+    var color: Color {
+        switch self {
+        case .missing:
+            return .gray
+        case .loading:
+            return .yellow
+        case .loaded:
+            return .green
+        case .failed:
+            return .red
+        }
+    }
 }
 
 enum MNISTError: Error {
@@ -86,11 +127,8 @@ class MNISTDatasetViewModel: ObservableObject {
     private var items: [MNISTSubset : [MNISTItem]] = [:]
     @Published private(set) var state: [MNISTSubset : MNISTState] = [:]
     
-    init(in folder: URL?) {
+    init() {
         MNISTSubset.all.forEach { state[$0] = .missing }
-        if let folder = folder {
-            load(from: folder)
-        }
     }
     
     func count(in: MNISTSubset.Purpose) -> Int {
@@ -121,65 +159,65 @@ class MNISTDatasetViewModel: ObservableObject {
         trainsetIndex.shuffle()
     }
     
-    func load(from folder: URL) -> Void {
+    func load(from folder: URL) async -> Void {
         let baseURL = "http://yann.lecun.com/exdb/mnist/"
-        let load = { [self] (tuple: MNISTTuple, error: Error?) -> Void in
-            if let error = error {
-                synchronize { state[tuple.0] = .failed(error) }
-            }
-            Task { @MainActor in
-                do {
-                    let item: [MNISTItem]
-                    switch tuple.0 {
-                    case .images:
-                        item = try Self.readImages(from: tuple.1)
-                    case .labels:
-                        item = try Self.readLabels(from: tuple.1)
-                    }
-                    synchronize {
-                        items[tuple.0] = item
-                        state[tuple.0] = .loaded
-                    }
-                } catch {
-                    synchronize { state[tuple.0] = .failed(error) }
-                }
-            }
-        }
-        MNISTSubset.all.forEach { state[$0] = .loading }
-        MNISTSubset.all.forEach { subset in
-            let itemUrl = folder.appending(path: subset.name)
-            if FileManager.default.fileExists(atPath: itemUrl.path) {
-                load((subset, itemUrl), nil)
-                return
-            }
-            let itemGzUrl = itemUrl.appendingPathExtension(for: .gzip)
-            if !FileManager.default.fileExists(atPath: itemGzUrl.path) {
-                let remoteItemUrl = URL(string: baseURL)?
-                    .appending(path: subset.name)
-                    .appendingPathExtension(for: .gzip)
-                Self.download(source: remoteItemUrl!, target: itemGzUrl) { error in
-                    if let error = error {
-                        load((subset, itemUrl), error)
-                        return
-                    }
+        MNISTSubset.all.forEach { state[$0] = .missing }
+        
+        await withTaskGroup(of: (MNISTSubset, MNISTState).self, returning: Void.self) { group in 
+            MNISTSubset.all.forEach { subset in
+                group.addTask { [self] in
+                    synchronize { state[subset] = .loading }
+                    
                     do {
+                        let itemUrl = folder.appending(path: subset.name)
+                        if FileManager.default.fileExists(atPath: itemUrl.path) {
+                            try await load(subset, from: itemUrl)
+                            return (subset, .loaded)
+                        }
+                        
+                        let itemGzUrl = itemUrl.appendingPathExtension(for: .gzip)
+                        if FileManager.default.fileExists(atPath: itemGzUrl.path) {
+                            try Self.gunzip(source: itemGzUrl, target: itemUrl)
+                            try await load(subset, from: itemUrl)
+                            return (subset, .loaded)
+                        }
+                        
+                        let remoteItemUrl = URL(string: baseURL)?
+                            .appending(path: subset.name)
+                            .appendingPathExtension(for: .gzip)
+                        let session = URLSession.shared
+                        let (tmpItemUrl, response) = try await session.download(from: remoteItemUrl!)
+                        let statusCode = (response as! HTTPURLResponse).statusCode
+                        if statusCode != 200 {
+                            throw MNISTError.response(code: statusCode)
+                        }
+                        try FileManager.default.copyItem(at: tmpItemUrl, to: itemGzUrl)
+                        try FileManager.default.removeItem(at: tmpItemUrl)
                         try Self.gunzip(source: itemGzUrl, target: itemUrl)
-                        load((subset, itemUrl), nil)
+                        try await load(subset, from: itemUrl)
+                        return (subset, .loaded)
                     } catch {
-                        load((subset, itemUrl), error)
-                        return
+                        synchronize { items[subset] = nil }
+                        return (subset, .failed(error))
                     }
                 }
-            } else {
-                do {
-                    try Self.gunzip(source: itemGzUrl, target: itemUrl)
-                    load((subset, itemUrl), nil)
-                } catch {
-                    load((subset, itemUrl), error)
-                    return
-                }
+            }
+            
+            for await result in group {
+                synchronize { state[result.0] = result.1 }
             }
         }
+    }
+    
+    private func load(_ subset: MNISTSubset, from itemUrl: URL) async throws -> Void {
+        let item: [MNISTItem]
+        switch subset {
+        case .images:
+            item = try Self.readImages(from: itemUrl)
+        case .labels:
+            item = try Self.readLabels(from: itemUrl)
+        }
+        synchronize { items[subset] = item }
     }
     
     private static func gunzip(source: URL, target: URL) throws -> Void {
@@ -188,37 +226,6 @@ class MNISTDatasetViewModel: ObservableObject {
             let content = contentGz.gunzip()
         else { throw MNISTError.gunzip }
         try content.write(to: target, options: .noFileProtection)
-    }
-    
-    private static func download(source: URL, target: URL, _ completion: @escaping (Error?) -> Void) -> Void {
-        let urlSession = URLSession(configuration: .default)
-        let task = urlSession.downloadTask(with: source) { location, response, error in
-            if let error = error {
-                completion(error)
-                return
-            }
-            if let response = response {
-                let statusCode = (response as! HTTPURLResponse).statusCode
-                if statusCode != 200 {
-                    completion(MNISTError.response(code: statusCode))
-                    return
-                }
-            }
-            guard
-                let location = location
-            else {
-                completion(URLError(.badURL))
-                return
-            }
-            do {
-                try FileManager.default.copyItem(at: location, to: target)
-            } catch {
-                completion(error)
-                return
-            }
-            completion(nil)
-        }
-        task.resume()
     }
     
     private static func readImages(from source: URL) throws -> [MNISTItem] {
@@ -253,7 +260,7 @@ class MNISTDatasetViewModel: ObservableObject {
         
         let rawNumberOfItems = handle.readData(ofLength: MemoryLayout<UInt32>.size)
         _ = UInt32(bigEndian: rawNumberOfItems.withUnsafeBytes({ $0.load(as: UInt32.self) }))
-
+        
         let rawLabelsData = handle.readDataToEndOfFile()
         let labels = rawLabelsData.withUnsafeBytes { Array($0.bindMemory(to: UInt8.self)) }
         

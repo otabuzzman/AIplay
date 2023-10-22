@@ -3,7 +3,7 @@ import PencilKit
 
 struct CanvasView {
     @Binding var canvas: PKCanvasView
-    @Binding var mNISTImage: [UInt8]
+    @Binding var mNISTImage: MNISTImage
 }
 
 extension CanvasView: UIViewRepresentable {
@@ -30,11 +30,11 @@ extension CanvasView: UIViewRepresentable {
 
 class CanvasCoordinator: NSObject {
     private var canvas: Binding<PKCanvasView>
-    private var mNISTImage: Binding<[UInt8]>
+    private var mNISTImage: Binding<MNISTImage>
     
     private var delay: Task<Void, Never>?
     
-    init(canvas: Binding<PKCanvasView>, mNISTImage: Binding<[UInt8]>) {
+    init(canvas: Binding<PKCanvasView>, mNISTImage: Binding<MNISTImage>) {
         self.canvas = canvas
         self.mNISTImage = mNISTImage
     }
@@ -58,7 +58,7 @@ extension CanvasCoordinator: PKCanvasViewDelegate {
 }
 
 extension PKCanvasView {
-    func makeMNISTImage() -> [UInt8] {
+    func makeMNISTImage() -> MNISTImage {
         guard
             let canvasImage = drawing
                 .transformed(using: .init(scaleX: 28 / bounds.size.width, y: 28 / bounds.size.height))
@@ -66,7 +66,7 @@ extension PKCanvasView {
                 .cgImage
         else { return [] }
         
-        var mNISTImage = [UInt8](repeating: 0, count: 784)
+        var mNISTImage = MNISTImage(repeating: 0, count: 784)
         guard
             let mNISTContext = CGContext(
                 data: &mNISTImage,
@@ -83,7 +83,7 @@ extension PKCanvasView {
 }
 
 extension Image {
-    init?(mNISTImage: [UInt8]) {
+    init?(mNISTImage: MNISTImage) {
         guard
             mNISTImage.count == 784
         else { return nil }

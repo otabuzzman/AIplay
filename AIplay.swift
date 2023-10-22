@@ -2,22 +2,22 @@ import SwiftUI
 import PlaygroundTester
 
 struct ContentView: View {
-    @State private var showAppInfo = false
+    @State private var appInfoSow = false
     
     var body: some View {
         HStack {
             Label("AIplay", image: "npu")
             Spacer()
             Button {
-                showAppInfo.toggle()
+                appInfoSow.toggle()
             } label: {
                 Image(systemName: "info.circle")
             }
         }
         .font(.largeTitle)
         .padding()
-        .sheet(isPresented: $showAppInfo) {
-            appInfo(isPresented: $showAppInfo)
+        .sheet(isPresented: $appInfoSow) {
+            appInfo(isPresented: $appInfoSow)
                 .frame(minWidth: 0, maxWidth: 512)
         }
         MYONNView()
@@ -27,7 +27,7 @@ struct ContentView: View {
 func appInfo(isPresented: Binding<Bool>) -> some View {
     let section00 = try! AttributedString(markdown:
             """
-            AIplay implements a neural network MVP. It queries the network (prediction) with number images from the MNIST dataset and provides handwritten input as well. The app is a showcase. There is no configuration interface. Changing parameters must therefore be done in source code and requires Xcode or Swift Playgrounds 4 (iPadOS).
+            AIplay implements a neural network MVP. It queries the network (prediction) with number images from the MNIST dataset. Handwritten number entries using finger or Apple Pencil are also supported. The app is a showcase. There is no configuration interface. Changing parameters must therefore be done in source code and requires Xcode or Swift Playgrounds 4 (iPadOS).
             """, options: .init(interpretedSyntax: .full))
     var section01 = try! AttributedString(markdown:
             """
@@ -139,8 +139,6 @@ internal func getAppFolder() -> URL? {
 
 @main
 struct AIplay: App {
-    @State private var folderPickerShow = getAppFolder() == nil
-
     init() {
         PlaygroundTester.PlaygroundTesterConfiguration.isTesting = false
     }
@@ -149,18 +147,6 @@ struct AIplay: App {
         WindowGroup {
             PlaygroundTester.PlaygroundTesterWrapperView {
                 ContentView()
-            }
-            .sheet(isPresented: $folderPickerShow) {
-                FolderPicker { result in
-                    switch result {
-                    case .success(let folder):
-                        folder.accessSecurityScopedResource { folder in
-                            setAppFolder(url: folder)
-                        }
-                    default: // .failure(let error)
-                        break
-                    }
-                }
             }
         }
     }
