@@ -46,6 +46,7 @@ struct NetworkView: View {
                 } label: {
                     Label("Random testset image", systemImage: "sparkle.magnifyingglass")
                 }
+                .disabled(longRunBusy)
                 Spacer()
                 Text("\(resultReading == nil ? "-" : resultReading!.description)")
                     .foregroundColor(resultReading == nil || resultReading == queryTarget ? .primary : .red)

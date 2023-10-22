@@ -185,16 +185,10 @@ class MNISTDatasetViewModel: ObservableObject {
                         let remoteItemUrl = URL(string: baseURL)?
                             .appending(path: subset.name)
                             .appendingPathExtension(for: .gzip)
-                        let session = URLSession.shared
-                        let (tmpItemUrl, response) = try await session.download(from: remoteItemUrl!)
-                        let statusCode = (response as! HTTPURLResponse).statusCode
-                        if statusCode != 200 {
-                            throw MNISTError.response(code: statusCode)
+                        try await Self.download(source: remoteItemUrl!, target: itemGzUrl) { _ in 
+                            try Self.gunzip(source: itemGzUrl, target: itemUrl)
+                            try await load(subset, from: itemUrl)
                         }
-                        try FileManager.default.copyItem(at: tmpItemUrl, to: itemGzUrl)
-                        try FileManager.default.removeItem(at: tmpItemUrl)
-                        try Self.gunzip(source: itemGzUrl, target: itemUrl)
-                        try await load(subset, from: itemUrl)
                         return (subset, .loaded)
                     } catch {
                         synchronize { items[subset] = nil }
@@ -209,6 +203,26 @@ class MNISTDatasetViewModel: ObservableObject {
         }
     }
     
+    private static func download(source: URL, target: URL, completion: (URLResponse) async throws -> Void) async throws -> Void {
+        let session = URLSession.shared
+        let (tmpUrl, response) = try await session.download(from: source)
+        let statusCode = (response as! HTTPURLResponse).statusCode
+        if statusCode != 200 {
+            throw MNISTError.response(code: statusCode)
+        }
+        try FileManager.default.copyItem(at: tmpUrl, to: target)
+        try FileManager.default.removeItem(at: tmpUrl)
+        try await completion(response)
+    }
+    
+    private static func gunzip(source: URL, target: URL) throws -> Void {
+        let contentGz = try Data(contentsOf: source)
+        guard
+            let content = contentGz.gunzip()
+        else { throw MNISTError.gunzip }
+        try content.write(to: target, options: .noFileProtection)
+    }
+    
     private func load(_ subset: MNISTSubset, from itemUrl: URL) async throws -> Void {
         let item: [MNISTItem]
         switch subset {
@@ -218,14 +232,6 @@ class MNISTDatasetViewModel: ObservableObject {
             item = try Self.readLabels(from: itemUrl)
         }
         synchronize { items[subset] = item }
-    }
-    
-    private static func gunzip(source: URL, target: URL) throws -> Void {
-        let contentGz = try Data(contentsOf: source)
-        guard
-            let content = contentGz.gunzip()
-        else { throw MNISTError.gunzip }
-        try content.write(to: target, options: .noFileProtection)
     }
     
     private static func readImages(from source: URL) throws -> [MNISTItem] {
