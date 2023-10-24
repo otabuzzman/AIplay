@@ -9,6 +9,9 @@ struct NetworkView: View {
     @State private var longRunTask: Task<Void, Never>?
     @State private var longRunBusy = false
     
+    @State private var datasetReady = false
+    @State private var datasetError = false
+    
     @State private var canvas = PKCanvasView()
     @State private var canvasInput = MNISTImage()
     
@@ -17,7 +20,7 @@ struct NetworkView: View {
     @State private var resultReading: Int?
     @State private var resultDetails: [(Int, Float)]?
     
-    @State private var resultDetailsShow = false
+    @State private var showResultDetails = false
     
     @State private var error: NetworkExchangeError?
     
@@ -46,16 +49,16 @@ struct NetworkView: View {
                 } label: {
                     Label("Random testset image", systemImage: "sparkle.magnifyingglass")
                 }
-                .disabled(longRunBusy)
+                .disabled(longRunBusy || !datasetReady)
                 Spacer()
                 Text("\(resultReading == nil ? "-" : resultReading!.description)")
                     .foregroundColor(resultReading == nil || resultReading == queryTarget ? .primary : .red)
                 Button {
                     withAnimation {
-                        resultDetailsShow.toggle()
+                        showResultDetails.toggle()
                     }
                 } label: {
-                    Image(systemName: resultDetailsShow ? "chevron.down" : "chart.bar.doc.horizontal")
+                    Image(systemName: showResultDetails ? "chevron.down" : "chart.bar.doc.horizontal")
                 }
                 .frame(minWidth: 18)
                 .disabled((resultDetails?.count ?? 0) == 0)
@@ -63,7 +66,7 @@ struct NetworkView: View {
             .padding()
             .background(.white)
             .background(in: RoundedRectangle(cornerRadius: 12))
-            if resultDetailsShow {
+            if showResultDetails {
                 ResultDetailsView(resultDetails)
                     .padding(.leading)
             }
@@ -127,8 +130,8 @@ struct NetworkView: View {
             Form {
                 Section {
                     // https://rhonabwy.com/2021/02/13/nested-observable-objects-in-swiftui/
-                    MNISTDatasetView(viewModel: viewModel.dataset, busy: $longRunBusy)
-                        .disabled(longRunBusy)
+                    MNISTDatasetView(viewModel: viewModel.dataset, ready: $datasetReady, error: $datasetError)
+                        .disabled(!datasetReady && !datasetError)
                 } header: {
                     HStack {
                         Label("DATASET", systemImage: "chart.bar").font(.headline)
@@ -261,7 +264,7 @@ struct NetworkView: View {
                             Spacer()
                         }
                     }
-                    .disabled(longRunBusy)
+                    .disabled(longRunBusy || !datasetReady)
                 } footer: {
                     HStack {
                         Spacer()
@@ -273,7 +276,7 @@ struct NetworkView: View {
                                 queryInput = []
                                 queryTarget = nil
                                 withAnimation() {
-                                    resultDetailsShow = false
+                                    showResultDetails = false
                                 }
                                 resultDetails = nil
                                 resultReading = nil

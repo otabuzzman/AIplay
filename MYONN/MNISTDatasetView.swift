@@ -5,41 +5,82 @@ import DataCompression
 
 struct MNISTDatasetView: View {
     @ObservedObject var viewModel: MNISTDatasetViewModel
-    @Binding var busy: Bool
-        
-    @State private var folderPickerShow = getAppFolder() == nil
+    @Binding var ready: Bool
+    @Binding var error: Bool
+
+    @State private var showFolderPicker = getAppFolder() == nil
+    
+    @State private var showLoadError = false
+    @State private var loadErrorType: String?
+    @State private var loadErrorItem: MNISTSubset?
+    @State private var loadErrorInfo: String?
     
     private func load() -> Void {
         Task {
             guard
                 let folder = getAppFolder()
             else { return }
-            busy = true
+            
+            ready = false
+            error = false
+            
             await viewModel.load(from: folder)
-            busy = false
+            MNISTSubset.all.forEach {
+                switch viewModel.state[$0] {
+                case .failed:
+                    error = true
+                default: // .loaded
+                    ready = true
+                }
+            }
         }
     }
     
     var body: some View {
         HStack {
-            Button {
-                load()
-            } label: {
-                Label("Reload MNIST", systemImage: "arrow.counterclockwise.icloud")
+            HStack { // mimic Button with limited tap area
+                Image(systemName: "arrow.counterclockwise.icloud")
+                Text("Reload MNIST")
             }
+            .foregroundColor(.accentColor)
+            .contentShape(Rectangle())
+                .onTapGesture {
+                    load()
+                }
             Spacer()
-            HStack {
-                Circle().foregroundColor(viewModel.state[.images(.train)]?.color)
-                Circle().foregroundColor(viewModel.state[.labels(.train)]?.color)
-                Circle().foregroundColor(viewModel.state[.images(.test)]?.color)
-                Circle().foregroundColor(viewModel.state[.labels(.test)]?.color)
+            HStack(spacing: 4) {
+                ForEach(MNISTSubset.all, id: \.self) { subset in
+                    switch viewModel.state[subset] {
+                    case .missing, .none: // .none auto-injected for nil from Dictionary
+                        Image(systemName: "multiply.circle").foregroundColor(.gray)
+                    case .loading:
+                        Image(systemName: "clock").foregroundColor(.yellow)
+                    case .loaded:
+                        Image(systemName: "info.circle").foregroundColor(.green)
+                    case .failed(let error):
+                        Image(systemName: "checkmark.circle")
+                            .foregroundColor(.red)
+                            .contentShape(Circle())
+                            .onTapGesture {
+                                loadErrorType = String(describing: type(of: error))
+                                loadErrorItem = subset
+                                switch error {
+                                case let error as MNISTError:
+                                    loadErrorInfo = error.description
+                                default: // Error
+                                    loadErrorInfo = error.localizedDescription
+                                }
+                                showLoadError = true
+                            }
+                    }
+                }
+                .font(.title3)
             }
-            .frame(height: 24)
         }
         .onAppear {
             load()
         }
-        .sheet(isPresented: $folderPickerShow) {
+        .sheet(isPresented: $showFolderPicker) {
             FolderPicker { result in
                 switch result {
                 case .success(let folder):
@@ -51,6 +92,9 @@ struct MNISTDatasetView: View {
                     break
                 }
             }
+        }
+        .alert("Failed to load file :\n\(loadErrorItem?.file ?? "<nil>")", isPresented: $showLoadError) {} message: {
+            Text("Caught \(loadErrorType ?? "<nil>") exception :\n\(loadErrorInfo ?? "<nil>")")
         }
     }
 }
@@ -64,7 +108,7 @@ enum MNISTSubset: Hashable {
     case images(Purpose)
     case labels(Purpose)
     
-    var name: String {
+    var file: String {
         switch self {
         case .images(let purpose):
             return purpose.rawValue + "-images-idx3-ubyte"
@@ -86,22 +130,7 @@ enum MNISTState {
     case missing
     case loading
     case loaded
-    case failed(Error)
-}
-
-extension MNISTState {
-    var color: Color {
-        switch self {
-        case .missing:
-            return .gray
-        case .loading:
-            return .yellow
-        case .loaded:
-            return .green
-        case .failed:
-            return .red
-        }
-    }
+    case failed(any Error)
 }
 
 enum MNISTError: Error {
@@ -169,7 +198,7 @@ class MNISTDatasetViewModel: ObservableObject {
                     synchronize { state[subset] = .loading }
                     
                     do {
-                        let itemUrl = folder.appending(path: subset.name)
+                        let itemUrl = folder.appending(path: subset.file)
                         if FileManager.default.fileExists(atPath: itemUrl.path) {
                             try await load(subset, from: itemUrl)
                             return (subset, .loaded)
@@ -183,7 +212,7 @@ class MNISTDatasetViewModel: ObservableObject {
                         }
                         
                         let remoteItemUrl = URL(string: baseURL)?
-                            .appending(path: subset.name)
+                            .appending(path: subset.file)
                             .appendingPathExtension(for: .gzip)
                         try await Self.download(source: remoteItemUrl!, target: itemGzUrl) { _ in 
                             try Self.gunzip(source: itemGzUrl, target: itemUrl)
