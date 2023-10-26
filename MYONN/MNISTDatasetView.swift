@@ -11,9 +11,9 @@ struct MNISTDatasetView: View {
     @State private var showFolderPicker = getAppFolder() == nil
     
     @State private var showLoadError = false
-    @State private var loadErrorType: String?
-    @State private var loadErrorItem: MNISTSubset?
-    @State private var loadErrorInfo: String?
+    
+    typealias LoadError = (subset: MNISTSubset, error: Error)
+    @State private var loadError: LoadError?
     
     private func load() -> Void {
         Task {
@@ -51,7 +51,7 @@ struct MNISTDatasetView: View {
             HStack(spacing: 4) {
                 ForEach(MNISTSubset.all, id: \.self) { subset in
                     switch viewModel.state[subset] {
-                    case .missing, .none: // .none auto-injected for nil from Dictionary
+                    case .missing, .none:
                         Image(systemName: "multiply.circle").foregroundColor(.gray)
                     case .loading:
                         Image(systemName: "clock").foregroundColor(.yellow)
@@ -62,14 +62,7 @@ struct MNISTDatasetView: View {
                             .foregroundColor(.red)
                             .contentShape(Circle())
                             .onTapGesture {
-                                loadErrorType = String(describing: type(of: error))
-                                loadErrorItem = subset
-                                switch error {
-                                case let error as MNISTError:
-                                    loadErrorInfo = error.description
-                                default: // Error
-                                    loadErrorInfo = error.localizedDescription
-                                }
+                                loadError = (subset, error)
                                 showLoadError = true
                             }
                     }
@@ -93,8 +86,18 @@ struct MNISTDatasetView: View {
                 }
             }
         }
-        .alert("Failed to load file :\n\(loadErrorItem?.file ?? "<nil>")", isPresented: $showLoadError) {} message: {
-            Text("Caught \(loadErrorType ?? "<nil>") exception :\n\(loadErrorInfo ?? "<nil>")")
+        .alert("Error loading :\n\(loadError?.subset.file ?? "nil")", isPresented: $showLoadError) {} message: {
+            if let error = loadError?.error {
+                let type = "Caught \(String(describing: type(of: error))) exception"
+                switch error {
+                case let error as MNISTError:
+                    Text("\(type) :\n\(error.description)")
+                default: // Error
+                    Text("\(type) :\n\(error.localizedDescription)")
+                }
+            } else {
+                Text("Caught nil exception :\ncan’t actually happen")
+            }
         }
     }
 }

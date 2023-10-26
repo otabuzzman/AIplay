@@ -29,7 +29,7 @@ struct NetworkView: View {
     
     var body: some View {
         ProgressView(value: viewModel.progress)
-        VStack {
+        LazyVStack {
             HStack { // mimic list section header look
                 Label("NN PREDICTION", systemImage: "wand.and.stars.inverse")
                     .foregroundColor(.secondary).bold(true)
@@ -536,11 +536,10 @@ struct ResultDetailsView: View {
             ForEach(0..<details.count, id: \.self) { index in
                 HStack {
                     Text("\(details[index].0)")
-                        .frame(minWidth: 12)
                     ProgressView(value: details[index].1)
                     Text("\(details[index].1)")
-                        .frame(minWidth: 96)
                 }
+                .monospaced(true)
             }
         }
     }

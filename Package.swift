@@ -18,8 +18,8 @@ let package = Package(
             targets: ["AppModule"],
             bundleIdentifier: "com.otabuzzman.aiplay.ios",
             teamIdentifier: "28FV44657B",
-            displayVersion: "1.0.5",
-            bundleVersion: "6",
+            displayVersion: "1.0.6",
+            bundleVersion: "8",
             appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.yellow),
             supportedDeviceFamilies: [
@@ -28,8 +28,8 @@ let package = Package(
             ],
             supportedInterfaceOrientations: [
                 .portrait,
-                .landscapeRight,
-                .landscapeLeft,
+                .landscapeRight(.when(deviceFamilies: [.pad])),
+                .landscapeLeft(.when(deviceFamilies: [.pad])),
                 .portraitUpsideDown(.when(deviceFamilies: [.pad]))
             ],
             additionalInfoPlistContentFilePath: "Resources/AdditionalInfo.plist"
