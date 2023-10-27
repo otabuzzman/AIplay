@@ -32,13 +32,13 @@ func appInfo(isPresented: Binding<Bool>) -> some View {
     var section01 = try! AttributedString(markdown:
             """
             **Usage**
-            When you first start it, a file selection dialog opens where you once must select a folder to save and load files. The app then loads the MNIST data set from the internet. If the four circles (9) are green, you can start.
+            When you first start it, a file selection dialog opens where you once must select a folder to save and load files. The app then loads the MNIST data set from the internet. If the four icons (11) are green, you can start. Click red ones in case of errors to get details.
             
-            Place the `.nndx` files from the [repository](https://github.com/otabuzzman/AIplay/Resources) in the selected folder on your device and load (18) one of the pre-defined models or start right away training a new one.
+            Place the `.nndx` files from the [repository](https://github.com/otabuzzman/AIplay/Resources) in the selected folder on your device and load (20) one of the pre-defined models or start right away training a new one.
             """, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
     
-    section01[section01.range(of: "9")!].foregroundColor = .accentColor
-    section01[section01.range(of: "18")!].foregroundColor = .accentColor
+    section01[section01.range(of: "11")!].foregroundColor = .accentColor
+    section01[section01.range(of: "20")!].foregroundColor = .accentColor
     
     let section02 = try! AttributedString(markdown:
             """
@@ -51,25 +51,27 @@ func appInfo(isPresented: Binding<Bool>) -> some View {
             2. Progress indicator.
             3. Query with random image from MNIST test set (contains 10000 items).
             4. Prediction result. Turns red to indicate false prediction for test set item.
-            5. Display raw image of query input from dataset or handwritten.
-            6. Query with handwritten number input. Experimental feature. Input position in the sketch area and line width must correspond to MNIST. To get an idea have a look at some images (5) when performing random MNIST test set queries (3). To increase line width on larger displays (e.g. iPad or device held landscape) try drawing input multiple times.
-            7. Clear sketch area.
-            8. Reload the MNIST dataset into memory. Downloads the files and unzips them if necessary. Saves files in the app folder selected on first launch.
-            9. Per dataset-file state. Grey: present, yellow: loading, red: error and green: success. Circles from left to right correspond to files containing training images, training labels, test images and test labels respectively.
-            10. Mini-batch size (hard-coded).
-            11. Learning rate (hard-coded).
-            12. Number of trainings with full training set (contains 60000 items) applied to current network.
-            13. Time required to train the most recent epoch.
-            14. Train network with next mini-batch from MNIST training set.
-            15. Train network with full MNIST training set. Takes a couple of minutes. 
-            16. Query network with full MNIST test set and calculate accuracy.
-            17. Network accuracy. Multiply by 100 to get percent.
-            18. Save current network (model) in Files app in a roprietary format.
-            19. Load network with a model from the Files app. Overwrites current network without warning.
-            20. Reset network without warning. Stops training in progress. 
+            5. Open/ close network result details view.
+            6. Detailed propabillities of network result.
+            7. Display raw image of query input from dataset or handwritten.
+            8. Query with handwritten number input. Experimental feature. Input position in the sketch area and line width must correspond to MNIST. To get an idea have a look at some images (7) when performing random MNIST test set queries (3). To increase line width on larger displays (e.g. iPad or device held landscape) try drawing input multiple times.
+            9. Clear sketch area.
+            10. Reload the MNIST dataset into memory. Downloads the files and unzips them if necessary. Saves files in the app folder selected on first launch.
+            11. Per dataset-file state. Grey: present, yellow: loading, red: error and green: success. Circles from left to right correspond to files containing training images, training labels, test images and test labels respectively.
+            12. Mini-batch size (hard-coded).
+            13. Learning rate (hard-coded).
+            14. Number of trainings with full training set (contains 60000 items) applied to current network.
+            15. Time required to train the most recent epoch.
+            16. Train network with next mini-batch from MNIST training set.
+            17. Train network with full MNIST training set. Takes a couple of minutes.
+            18. Query network with full MNIST test set and calculate accuracy.
+            19. Network accuracy. Multiply by 100 to get percent.
+            20. Load network with a model from the Files app. Overwrites current network without warning.
+            21. Save current network (model) in Files app in a roprietary format.
+            22. Reset network without warning. Stops training in progress.
             """, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
     
-    for item in 1...20 {
+    for item in 1...22 {
         section03[section03.range(of: "\(item).")!].foregroundColor = .accentColor
     }
     
