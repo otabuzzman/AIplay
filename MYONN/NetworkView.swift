@@ -64,7 +64,7 @@ struct NetworkView: View {
                 .disabled((resultDetails?.count ?? 0) == 0)
             }
             .padding()
-            .background(.white)
+            .background(Color(UIColor.systemBackground))
             .background(in: RoundedRectangle(cornerRadius: 12))
             if showResultDetails {
                 ResultDetailsView(resultDetails)
@@ -109,10 +109,16 @@ struct NetworkView: View {
                                 .resizable()
                                 .aspectRatio(contentMode: .fit)
                                 .padding()
-                            Image(mNISTImage: queryInput)?
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .colorInvert()
+                            MSwitch {
+                                Image(mNISTImage: queryInput)?
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                                    .colorInvert()
+                            } dark: {
+                                Image(mNISTImage: queryInput)?
+                                    .resizable()
+                                    .aspectRatio(contentMode: .fit)
+                            }
                         }
                         .overlay(RoundedRectangle(cornerRadius: 4).stroke(.primary, lineWidth: 1))
                         .foregroundColor(Color(UIColor.secondarySystemBackground))
@@ -121,7 +127,7 @@ struct NetworkView: View {
                 .frame(minWidth: 0, maxWidth: .infinity)
             }
             .padding()
-            .background(.white)
+            .background(Color(UIColor.systemBackground))
             .background(in: RoundedRectangle(cornerRadius: 12))
         }
         .padding()
@@ -541,6 +547,31 @@ struct ResultDetailsView: View {
                 }
                 .monospaced(true)
             }
+        }
+    }
+}
+
+struct MSwitch<T: View, U: View>: View {
+    @Environment(\.colorScheme) var colorScheme
+    
+    let light: T
+    let dark: U
+    
+    init(light: T, dark: U) {
+        self.light = light
+        self.dark = dark
+    }
+    
+    init(light: () -> T, dark: () -> U) {
+        self.light = light()
+        self.dark = dark()
+    }
+    
+    @ViewBuilder var body: some View {
+        if colorScheme == .light {
+            light
+        } else {
+            dark
         }
     }
 }
