@@ -9,7 +9,7 @@ The app features stochastic gradient descent (SGD) and mini-batch which is the d
 The hard-coded network configuration is 784/ 100/ 10 fully-connected input/ hidden/ output nodes with sigmoid activation.
 
 ### Usage
-The app is on [TestFlight](https://testflight.apple.com/join/M2uSLM1e) and provides some usage information when you tap the circled i in the top left corner. On the first start after installation the app asks for a folder to store the MNIST dataset. The four MNIST status indicators turn into green when all files have been downloaded and unzipped.
+The app is on [TestFlight](https://testflight.apple.com/join/M2uSLM1e). After installation it asks on the first start for a folder to store the MNIST dataset. The four MNIST status indicators turn into green when all files have been downloaded and unzipped. There is some basic usage information when tapping the circled i in the top right corner.
 
 Input from the sketch area must be centered with some padding to the edges. Ideally, the images in the _Query Input_ and _Query Image_ areas will look fairly similar in terms of their position in their respective areas.
 
