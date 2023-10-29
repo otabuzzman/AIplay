@@ -9,9 +9,9 @@ The app features stochastic gradient descent (SGD) and mini-batch which is the d
 The hard-coded network configuration is 784/ 100/ 10 fully-connected input/ hidden/ output nodes with sigmoid activation.
 
 ### Usage
-The app is on [TestFlight](https://testflight.apple.com/join/M2uSLM1e) and provides some usage information when you tap the circled i in the top left corner. On the first start the app asks for a folder to store the MNIST dataset. The four MNIST status indicators turn into green when all files have been downloaded and unzipped. Training the whole dataset took between 30 (mini-batch) and 45 (SGD) minutes on an iPad Pro 2022.
+The app is on [TestFlight](https://testflight.apple.com/join/M2uSLM1e) and provides some usage information when you tap the circled i in the top left corner. On the first start after installation the app asks for a folder to store the MNIST dataset. The four MNIST status indicators turn into green when all files have been downloaded and unzipped.
 
-Input from the sketch area must be centered with some padding to the edges. Ideally, the images in the _Query input_ and _Query image_ areas will look quite similar.
+Input from the sketch area must be centered with some padding to the edges. Ideally, the images in the _Query Input_ and _Query Image_ areas will look fairly similar in terms of their position in their respective areas.
 
 **Working**
 - MNIST loading/ training/ predicting
