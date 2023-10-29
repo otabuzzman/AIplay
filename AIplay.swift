@@ -8,6 +8,30 @@ struct ContentView: View {
         HStack {
             Label("AIplay", image: "npu")
             Spacer()
+            Link(destination: URL(string: "https://x.com/@otabuzzman")!) {
+                MSwitch {
+                    Image("logo-black")
+                        .resizable()
+                        .scaledToFit()
+                } dark: {
+                    Image("logo-white")
+                        .resizable()
+                        .scaledToFit()
+                }
+            }
+            .frame(width: 28)
+            Link(destination: URL(string: "https://github.com/otabuzzman/AIplay")!) {
+                MSwitch {
+                    Image("github-mark")
+                        .resizable()
+                        .scaledToFit()
+                } dark: {
+                    Image("github-mark-white")
+                        .resizable()
+                        .scaledToFit()
+                }
+            }
+            .frame(width: 32)
             Button {
                 appInfoSow.toggle()
             } label: {
@@ -27,12 +51,12 @@ struct ContentView: View {
 func appInfo(isPresented: Binding<Bool>) -> some View {
     let section00 = try! AttributedString(markdown:
             """
-            AIplay implements a neural network MVP. It queries the network (prediction) with number images from the MNIST dataset. Handwritten number entries using finger or Apple Pencil are also supported. The app is a showcase. There is no configuration interface. Changing parameters must therefore be done in source code and requires Xcode or Swift Playgrounds 4 (iPadOS).
+            AIplay implements a neural network MVP. It queries the network (prediction) with number images from the MNIST dataset. Handwritten number entries using finger or Apple Pencil are also supported. There is no configuration interface. Changing parameters must therefore be done in source code and requires Xcode or Swift Playgrounds 4 (iPadOS).
             """, options: .init(interpretedSyntax: .full))
     var section01 = try! AttributedString(markdown:
             """
             **Usage**
-            When you first start it, a file selection dialog opens where you once must select a folder to save and load files. The app then loads the MNIST data set from the internet. If the four icons (11) are green, you can start. Click red ones in case of errors to get details.
+            After installation when you first start it, a file selection dialog opens where you once must select a folder to save and load files. The app then loads the MNIST data set from the internet. If the four icons (11) are green, you can start. Click red ones in case of errors to get details.
             
             Place the `.nndx` files from the [repository](https://github.com/otabuzzman/AIplay/Resources) in the selected folder on your device and load (20) one of the pre-defined models or start right away training a new one.
             """, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
