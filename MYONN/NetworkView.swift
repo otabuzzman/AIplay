@@ -60,7 +60,7 @@ struct NetworkView: View {
                 } label: {
                     Image(systemName: showResultDetails ? "chevron.down" : "chart.bar.doc.horizontal")
                 }
-                .frame(minWidth: 18)
+                .font(.title3)
                 .disabled((resultDetails?.count ?? 0) == 0)
             }
             .padding()
@@ -81,6 +81,7 @@ struct NetworkView: View {
                         } label: {
                             Image(systemName: "xmark.app")
                         }
+                        .font(.title3)
                     }
                     ZStack {
                         Image(systemName: "square.and.pencil")
