@@ -199,9 +199,20 @@ extension Layer: CustomCoder {
     }
 }
 
-enum ActivationFunction: Int {
+enum ActivationFunction: Int, CaseIterable {
     case identity = 1
     case sigmoid
+}
+
+extension ActivationFunction {
+    var description: String {
+        switch self {
+        case .identity:
+            return "Identity"
+        case .sigmoid:
+            return "Sigmoid"
+        }
+    }
 }
 
 extension ActivationFunction {
@@ -225,27 +236,39 @@ extension ActivationFunction {
     }
 }
 
-typealias NetworkConfig = (
-    layersWithSizes: [Int], activationFunctions: [ActivationFunction], learningRate: Float
-)
+typealias NetworkConfig = (miniBatchSize: Int, alpha: Float, inputs: LayerConfig, layers: [LayerConfig])
+
+struct LayerConfig: Identifiable, Hashable {
+    var id = UUID()
+    var inputs: Int
+    var punits: Int
+    var f: ActivationFunction
+    var tryOnGpu: Bool
+}
+
+extension LayerConfig {
+    init(_ inputs: Int, _ punits: Int, _ f: ActivationFunction, _ tryOnGpu: Bool) {
+        self.inputs = inputs
+        self.punits = punits
+        self.f = f
+        self.tryOnGpu = tryOnGpu
+    }
+}
 
 struct NetworkFactory: AbstractFactory {
     func create(_ config: NetworkConfig) -> Network? {
         guard
-            config.layersWithSizes.count > 1,
-            config.layersWithSizes.count - 1 == config.activationFunctions.count
+            config.layers.count > 0
         else { return nil }
         var layers: [Layer] = []
-        for index in 1..<config.layersWithSizes.count {
-            let prevLayerSize = config.layersWithSizes[index - 1]
-            let thisLayerSize = config.layersWithSizes[index]
-            let layer = Layer(
-                numberOfInputs: prevLayerSize,
-                numberOfPUnits: thisLayerSize,
-                activationFunction: config.activationFunctions[index - 1])
-            layers.append(layer)
+        for index in 0..<config.layers.count {
+            let layer = config.layers[index]
+            layers.append(Layer(
+                numberOfInputs: layer.inputs,
+                numberOfPUnits: layer.punits,
+                activationFunction: layer.f))
         }
-        return Network(layers, alpha: config.learningRate)
+        return Network(layers, alpha: config.alpha)
     }
 }
 

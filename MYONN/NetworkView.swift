@@ -137,28 +137,11 @@ struct NetworkView: View {
             Form {
                 Section {
                     // https://rhonabwy.com/2021/02/13/nested-observable-objects-in-swiftui/
-                    MNISTDatasetView(viewModel: viewModel.dataset, ready: $datasetReady, error: $datasetError)
+                    MNISTView(viewModel: viewModel.dataset, ready: $datasetReady, error: $datasetError)
                         .disabled(!datasetReady && !datasetError)
                 } header: {
                     HStack {
                         Label("DATASET", systemImage: "chart.bar").font(.headline)
-                        Spacer()
-                    }
-                }
-                Section {
-                    HStack {
-                        Text("Mini-batch size")
-                        Spacer()
-                        Text("\(viewModel.miniBatchSize)")
-                    }
-                    HStack {
-                        Text("Learning rate")
-                        Spacer()
-                        Text("0.3")
-                    }
-                } header: {
-                    HStack {
-                        Label("NN CONFIGURATION", systemImage: "gearshape").font(.headline)
                         Spacer()
                     }
                 }
@@ -303,13 +286,13 @@ extension NetworkView {
         guard
             let network = GenericFactory.create(NetworkFactory(), config)
         else { return nil }
-        viewModel = NetworkViewModel(network, MNISTDatasetViewModel())
+        viewModel = NetworkViewModel(network, MNISTViewModel())
     }
 }
 
 class NetworkViewModel: ObservableObject {
     var network: Network
-    var dataset: MNISTDatasetViewModel
+    var dataset: MNISTViewModel
     
     private(set) var miniBatchSize = 30
     
@@ -325,7 +308,7 @@ class NetworkViewModel: ObservableObject {
     
     @Published private(set) var duration: TimeInterval = 0
     
-    init(_ network: Network, _ dataset: MNISTDatasetViewModel) {
+    init(_ network: Network, _ dataset: MNISTViewModel) {
         self.network = network
         self.dataset = dataset
     }

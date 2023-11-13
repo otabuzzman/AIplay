@@ -17,9 +17,9 @@ Input from the sketch area must be centered with some padding to the edges. Idea
 - MNIST loading/ training/ predicting
 - Save/ load trained model (proprietary format)
 - Predict handwritten input
+- Simple configuration UI
 
 **Wanted**
-- Configuration UI
 - Save/ load in common format
 - CoreML usage
 - Metal compute shader usage (extended)
@@ -50,11 +50,12 @@ Apps used on iPad
 |FolderPicker.swift|A view. The function is in the name.|
 |GaussianDistribution.swift|A class to provide random floats with normal distribution.|
 |Matrix.swift|A somewhat pimped Array for matrix operations. Leverages vDSP.|
-|MNISTDatasetView.swift|MVVM to put MNIST on disk.|
+|MNISTView.swift|MVVM to put MNIST on disk.|
 |MYONNView.swift|The top-level view.|
 |Network.swift|The network implementation from MYONN book. Also includes Metal compute shader code.|
 |NetworkView.swift|MVVM to make use of network in SwiftUI.|
 |CanvasView.swift|The sketch area view for handwritten input.|
+|SetupView.swift|Simple network and layer configuration UI.|
 |MYONN-B30-0300-001-01.nnxd|Model in Neural Network Exchange Document (nndx) format. First functioning training. Mini-batch (size 30), learning rate 0.3, 1 epoch. Testset performance 0.9073.|
 |MYONN-B30-0300-001-02.nnxd|Model in Neural Network Exchange Document (nndx) format. First functioning training with Swift concurrency. Mini-batch (size 30), learning rate 0.3, 1 epoch. Testset performance 0.8942.|
 |MYONN-SGD-0300-001-01.nnxd|Model in Neural Network Exchange Document (nndx) format. First functioning training. Stoachstic gradient descent, learning rate 0.3, 1 epoch. Testset performance 0.9444.|

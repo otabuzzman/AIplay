@@ -2,11 +2,15 @@ import SwiftUI
 import PlaygroundTester
 
 struct ContentView: View {
-    @State private var appInfoSow = false
+    @State private var showAppInfo = false
+    @State private var showSetupView = false
+    
+    @State private var networkConfig = defaultConfig
     
     var body: some View {
         HStack {
             Label("AIplay", image: "npu")
+                .font(.largeTitle)
             Spacer()
             Link(destination: URL(string: "https://x.com/@otabuzzman")!) {
                 MSwitch {
@@ -32,19 +36,36 @@ struct ContentView: View {
                 }
             }
             .frame(width: 32)
-            Button {
-                appInfoSow.toggle()
-            } label: {
-                Image(systemName: "info.circle")
+            Group {
+                Button {
+                    showAppInfo.toggle()
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                Button {
+                    showSetupView.toggle()
+                } label: {
+                    Image(systemName: "gearshape")
+                }
             }
+            .font(.title)
         }
-        .font(.largeTitle)
         .padding()
-        .sheet(isPresented: $appInfoSow) {
-            appInfo(isPresented: $appInfoSow)
+        .sheet(isPresented: $showAppInfo) {
+            appInfo(isPresented: $showAppInfo)
                 .frame(minWidth: 0, maxWidth: 512)
         }
-        MYONNView()
+        .sheet(isPresented: $showSetupView, content: {
+            NetworkSetupView(isPresented: $showSetupView, networkConfig) { newConfig in
+                networkConfig = newConfig
+                showSetupView.toggle()
+                let _ = print("\(newConfig.miniBatchSize), \(newConfig.alpha) \(newConfig.inputs)")
+                for layer in newConfig.layers {
+                    let _ = print("    \(layer)")
+                }
+            }
+        })
+        NetworkView(config: defaultConfig)
     }
 }
 
@@ -210,4 +231,22 @@ protocol AbstractFactory {
     associatedtype Config
     associatedtype Output
     func create(_ config: Config) -> Output?
+}
+
+// NYONN sample configuration
+//   usage: GenericFactory.create(NetworkFactory(), defaultConfig)
+let defaultConfig: NetworkConfig = (
+    30, 0.3, LayerConfig(784, 0, .identity, false), [
+        LayerConfig(784, 100, .sigmoid, false),
+        LayerConfig(100, 10, .sigmoid, false)])
+
+// specialized NYONN factory
+//   usage: GenericFactory.create(DefaultFactory(), nil)
+struct DefaultFactory: AbstractFactory {
+    func create(_ config: Never?) -> Network? {
+        Network([
+            Layer(numberOfInputs: 784, numberOfPUnits: 100, activationFunction: .sigmoid),
+            Layer(numberOfInputs: 100, numberOfPUnits: 10, activationFunction: .sigmoid)
+        ], alpha: 0.3)
+    }
 }

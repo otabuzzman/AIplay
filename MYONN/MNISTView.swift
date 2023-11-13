@@ -3,8 +3,8 @@ import Foundation
 
 import DataCompression
 
-struct MNISTDatasetView: View {
-    @ObservedObject var viewModel: MNISTDatasetViewModel
+struct MNISTView: View {
+    @ObservedObject var viewModel: MNISTViewModel
     @Binding var ready: Bool
     @Binding var error: Bool
 
@@ -25,7 +25,7 @@ struct MNISTDatasetView: View {
             error = false
             
             await viewModel.load(from: folder)
-            MNISTSubset.all.forEach {
+            MNISTSubset.allCases.forEach {
                 switch viewModel.state[$0] {
                 case .failed:
                     error = true
@@ -49,7 +49,7 @@ struct MNISTDatasetView: View {
                 }
             Spacer()
             HStack(spacing: 4) {
-                ForEach(MNISTSubset.all, id: \.self) { subset in
+                ForEach(MNISTSubset.allCases, id: \.self) { subset in
                     switch viewModel.state[subset] {
                     case .missing, .none:
                         Image(systemName: "multiply.circle").foregroundColor(.gray)
@@ -120,7 +120,7 @@ enum MNISTSubset: Hashable {
         }
     }
     
-    static var all: [MNISTSubset] { [.images(.train), .labels(.train), .images(.test), .labels(.test)] }
+    static var allCases: [Self] { [.images(.train), .labels(.train), .images(.test), .labels(.test)] }
 }
 
 protocol MNISTItem { }
@@ -152,7 +152,7 @@ extension MNISTError {
     }
 }
 
-class MNISTDatasetViewModel: ObservableObject {
+class MNISTViewModel: ObservableObject {
     private var lock = NSLock()
     
     private var trainsetIndex = Array(0..<60000)
@@ -160,7 +160,7 @@ class MNISTDatasetViewModel: ObservableObject {
     @Published private(set) var state: [MNISTSubset : MNISTState] = [:]
     
     init() {
-        MNISTSubset.all.forEach { state[$0] = .missing }
+        MNISTSubset.allCases.forEach { state[$0] = .missing }
     }
     
     func count(in: MNISTSubset.Purpose) -> Int {
@@ -193,10 +193,10 @@ class MNISTDatasetViewModel: ObservableObject {
     
     func load(from folder: URL) async -> Void {
         let baseURL = "http://yann.lecun.com/exdb/mnist/"
-        MNISTSubset.all.forEach { state[$0] = .missing }
+        MNISTSubset.allCases.forEach { state[$0] = .missing }
         
         await withTaskGroup(of: (MNISTSubset, MNISTState).self, returning: Void.self) { group in 
-            MNISTSubset.all.forEach { subset in
+            MNISTSubset.allCases.forEach { subset in
                 group.addTask { [self] in
                     synchronize { state[subset] = .loading }
                     
