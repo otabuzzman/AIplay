@@ -70,7 +70,7 @@ struct MNISTView: View {
                 .font(.title3)
             }
         }
-        .onAppear {
+        .onFirstAppear {
             load()
         }
         .sheet(isPresented: $showFolderPicker) {
@@ -331,5 +331,32 @@ extension URL {
                 bookmarkDataIsStale: &isStale)
         }
         return securityScopedUrl
+    }
+}
+
+struct FirstAppearModifier: ViewModifier {
+    private let perform: () -> Void
+    
+    @State private var hasAppeared = false
+    
+    public init(_ perform: @escaping () -> Void) {
+        self.perform = perform
+    }
+    
+    public func body(content: Content) -> some View {
+        content
+            .onAppear {
+                guard
+                    !hasAppeared
+                else { return }
+                hasAppeared = true
+                perform()
+            }
+    }
+}
+
+extension View {
+    func onFirstAppear(_ perform: @escaping () -> Void) -> some View {
+        modifier(FirstAppearModifier(perform))
     }
 }

@@ -138,7 +138,7 @@ struct NetworkView: View {
                 Section {
                     // https://rhonabwy.com/2021/02/13/nested-observable-objects-in-swiftui/
                     MNISTView(viewModel: viewModel.dataset, ready: $datasetReady, error: $datasetError)
-                        .disabled(!datasetReady && !datasetError)
+                        .disabled(!datasetReady && !datasetError || longRunBusy)
                 } header: {
                     HStack {
                         Label("DATASET", systemImage: "chart.bar").font(.headline)
