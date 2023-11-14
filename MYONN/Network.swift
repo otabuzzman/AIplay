@@ -56,7 +56,7 @@ struct Network {
 
 extension Network: CustomStringConvertible {
     var description: String {
-        "NetworkViewModel(layers: \(layers), alpha: \(alpha))"
+        "Network(layers: \(layers), alpha: \(alpha))"
     }
 }
 
@@ -236,7 +236,27 @@ extension ActivationFunction {
     }
 }
 
-typealias NetworkConfig = (miniBatchSize: Int, alpha: Float, inputs: LayerConfig, layers: [LayerConfig])
+struct NetworkConfig {
+    var miniBatchSize: Int
+    var alpha: Float
+    var inputs: LayerConfig
+    var layers: [LayerConfig]
+}
+
+extension NetworkConfig {
+    init(_ miniBatchSize: Int, _ alpha: Float, _ inputs: LayerConfig, _ layers: [LayerConfig]) {
+        self.miniBatchSize = miniBatchSize
+        self.alpha = alpha
+        self.inputs = inputs
+        self.layers = layers
+    }
+}
+
+extension NetworkConfig: CustomStringConvertible {
+    var description: String {
+        "NetworkConfig(miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers)"
+    }
+}
 
 struct LayerConfig: Identifiable, Hashable {
     var id = UUID()
@@ -252,6 +272,12 @@ extension LayerConfig {
         self.punits = punits
         self.f = f
         self.tryOnGpu = tryOnGpu
+    }
+}
+
+extension LayerConfig: CustomStringConvertible {
+    var description: String {
+        "LayerConfig(inputs: \(inputs), punits: \(punits), f: \(f), tryOnGpu: \(tryOnGpu)"
     }
 }
 

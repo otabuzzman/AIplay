@@ -113,7 +113,15 @@ struct NetworkSetupView: View {
                         .font(.subheadline)
                 }
                 Section {
-                    NavigationLink("Input", value: inputs)
+                    NavigationLink(value: inputs) {
+                        HStack {
+                            Text("Inputs")
+                            Spacer()
+                            Text("\(inputs.inputs)")
+                            Image(systemName: "line.horizontal.3")
+                                .foregroundColor(.clear)
+                        }
+                    }
                     List {
                         // laggy list item move when using array indices instead of State
                         // https://www.reddit.com/r/SwiftUI/comments/16aytl4/comment/jzak15t
@@ -124,6 +132,7 @@ struct NetworkSetupView: View {
                                 HStack {
                                     Text("Fully connected")
                                     Spacer()
+                                    Text("\(layer.wrappedValue.punits)")
                                     Image(systemName: "line.horizontal.3")
                                         .foregroundColor(.secondary)
                                 }

@@ -5,7 +5,8 @@ struct ContentView: View {
     @State private var showAppInfo = false
     @State private var showSetupView = false
     
-    @State private var networkConfig = defaultConfig
+    @StateObject private var dataset = MNISTViewModel()
+    @State private var networkConfig: NetworkConfig = .default
     
     var body: some View {
         HStack {
@@ -55,17 +56,17 @@ struct ContentView: View {
             appInfo(isPresented: $showAppInfo)
                 .frame(minWidth: 0, maxWidth: 512)
         }
-        .sheet(isPresented: $showSetupView, content: {
+        .sheet(isPresented: $showSetupView) {
             NetworkSetupView(isPresented: $showSetupView, networkConfig) { newConfig in
                 networkConfig = newConfig
                 showSetupView.toggle()
-                let _ = print("\(newConfig.miniBatchSize), \(newConfig.alpha) \(newConfig.inputs)")
-                for layer in newConfig.layers {
-                    let _ = print("    \(layer)")
+                
+                if _isDebugAssertConfiguration() {
+                    print(networkConfig)
                 }
             }
-        })
-        NetworkView(config: defaultConfig)
+        }
+        NetworkView(config: networkConfig, dataset: dataset)
     }
 }
 
@@ -233,13 +234,6 @@ protocol AbstractFactory {
     func create(_ config: Config) -> Output?
 }
 
-// NYONN sample configuration
-//   usage: GenericFactory.create(NetworkFactory(), defaultConfig)
-let defaultConfig: NetworkConfig = (
-    30, 0.3, LayerConfig(784, 0, .identity, false), [
-        LayerConfig(784, 100, .sigmoid, false),
-        LayerConfig(100, 10, .sigmoid, false)])
-
 // specialized NYONN factory
 //   usage: GenericFactory.create(DefaultFactory(), nil)
 struct DefaultFactory: AbstractFactory {
@@ -249,4 +243,15 @@ struct DefaultFactory: AbstractFactory {
             Layer(numberOfInputs: 100, numberOfPUnits: 10, activationFunction: .sigmoid)
         ], alpha: 0.3)
     }
+}
+
+extension NetworkConfig {
+    static let `default` = Self.myonn
+    
+    // NYONN sample configuration
+    //   usage: GenericFactory.create(NetworkFactory(), .myonn)
+    static let myonn = Self(
+        30, 0.3, LayerConfig(784, 0, .identity, false), [
+            LayerConfig(784, 100, .sigmoid, false),
+            LayerConfig(100, 10, .sigmoid, false)])
 }

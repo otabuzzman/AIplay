@@ -282,11 +282,11 @@ struct NetworkView: View {
 }
 
 extension NetworkView {
-    init?(config: NetworkConfig) {
+    init?(config: NetworkConfig, dataset: MNISTViewModel) {
         guard
             let network = GenericFactory.create(NetworkFactory(), config)
         else { return nil }
-        viewModel = NetworkViewModel(network, MNISTViewModel())
+        viewModel = NetworkViewModel(network, dataset)
     }
 }
 
@@ -430,7 +430,7 @@ class NetworkViewModel: ObservableObject {
     }
     
     func reset() -> Void {
-        network = GenericFactory.create(NetworkFactory(), defaultConfig)!
+        network = GenericFactory.create(NetworkFactory(), .default)!
         samplesTrained = 0
         batchesTrained = 0
         epochsTrained = 0
