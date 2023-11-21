@@ -22,6 +22,7 @@ struct NetworkView: View {
     
     @State private var showResultDetails = false
     
+    @State private var document: NetworkExchangeDocument?
     @State private var error: NetworkExchangeError?
     
     @State private var isExporting = false
@@ -213,43 +214,14 @@ struct NetworkView: View {
                             } label: {
                                 Label("Import model from Files", systemImage: "square.and.arrow.up")
                             }
-                            .fileImporter(isPresented: $isImporting,
-                                          allowedContentTypes: [.nnxd], allowsMultipleSelection: false) { result in
-                                switch result {
-                                case .success(let url):
-                                    do {
-                                        let content = try Data(contentsOf: url[0])
-                                        guard
-                                            let network = Network(from: content)
-                                        else {
-                                            self.error = .nndxDecode(url[0])
-                                            return
-                                        }
-                                        viewModel.network = network
-                                    } catch {
-                                        self.error = .nndxRead(url[0], error)
-                                    }
-                                case .failure(let error):
-                                    self.error = .nndxLoad(error)
-                                }
-                            }
                             Spacer()
                         }
                         HStack {
                             Button {
+                                document = NetworkExchangeDocument(viewModel.network.encode)
                                 isExporting = true
                             } label: {
                                 Label("Export model to Files", systemImage: "square.and.arrow.down")
-                            }
-                            .fileExporter(isPresented: $isExporting,
-                                          document: NetworkExchangeDocument(viewModel.network.encode),
-                                          contentType: .nnxd, defaultFilename: "Untitled") { result in
-                                switch result {
-                                case .success:
-                                    break
-                                case .failure(let error):
-                                    self.error = .nndxSave(error)
-                                }
                             }
                             Spacer()
                         }
@@ -276,6 +248,34 @@ struct NetworkView: View {
                     }
                     .padding()
                 }
+            }
+        }
+        .fileImporter(isPresented: $isImporting, allowedContentTypes: [.nnxd], allowsMultipleSelection: false) { result in
+            switch result {
+            case .success(let url):
+                do {
+                    let content = try Data(contentsOf: url[0])
+                    guard
+                        let network = Network(from: content)
+                    else {
+                        self.error = .nndxDecode(url[0])
+                        return
+                    }
+                    viewModel.network = network
+                } catch {
+                    self.error = .nndxRead(url[0], error)
+                }
+            case .failure(let error):
+                self.error = .nndxLoad(error)
+            }
+        }
+        // modifier attached to Button reopens system interface on pressing return and hide keys
+        .fileExporter(isPresented: $isExporting, document: document, contentType: .nnxd, defaultFilename: "Untitled") { result in
+            switch result {
+            case .success:
+                break
+            case .failure(let error):
+                self.error = .nndxSave(error)
             }
         }
     }
