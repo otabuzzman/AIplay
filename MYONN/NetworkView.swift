@@ -286,15 +286,14 @@ extension NetworkView {
         guard
             let network = GenericFactory.create(NetworkFactory(), config)
         else { return nil }
-        viewModel = NetworkViewModel(network, dataset)
+        viewModel = NetworkViewModel(network, dataset, config.miniBatchSize)
     }
 }
 
 class NetworkViewModel: ObservableObject {
     var network: Network
-    var dataset: MNISTViewModel
-    
-    private(set) var miniBatchSize = 30
+    private(set) var dataset: MNISTViewModel
+    private(set) var miniBatchSize: Int
     
     @Published private(set) var samplesTrained = 0  
     private var samplesQueried = [Int]()
@@ -308,9 +307,10 @@ class NetworkViewModel: ObservableObject {
     
     @Published private(set) var duration: TimeInterval = 0
     
-    init(_ network: Network, _ dataset: MNISTViewModel) {
+    init(_ network: Network, _ dataset: MNISTViewModel, _ miniBatchSize: Int) {
         self.network = network
         self.dataset = dataset
+        self.miniBatchSize = miniBatchSize
     }
     
     func queryAll() async -> Void {
@@ -322,7 +322,7 @@ class NetworkViewModel: ObservableObject {
     
     private func query(startWithSample index: Int, count: Int) async -> Void {
         for i in 0..<count {
-            let (input, target) = dataset.fetch(i, from: .test)
+            let (input, target) = dataset.fetch(index + i, from: .test)
             let result = query(sample: input).maxElementIndex()! // probably save to unwrap
             if samplesQueried.count > index {
                 samplesQueried[i] = result == target ? 1 : 0
@@ -363,7 +363,7 @@ class NetworkViewModel: ObservableObject {
         duration = 0
         let t0 = Date.timeIntervalSinceReferenceDate
         for i in 0..<count {
-            let (input, target) = dataset.fetch(index + 1, from: .train)
+            let (input, target) = dataset.fetch(index + i, from: .train)
             train(sample: input, target: target)
             let progress = Float(i + 1) / Float(count)
             if progress > self.progress + progressIncrement {
@@ -399,18 +399,7 @@ class NetworkViewModel: ObservableObject {
             let a = (index + i) * miniBatchSize
             let o = a + miniBatchSize
             let (input, target) = dataset.fetch(a..<o, from: .train)
-            let I = input.map {
-                Matrix<Float>(
-                    rows: $0.count, columns: 1,
-                    entries: $0.map { (Float($0) / 255.0 * 0.99) + 0.01 })
-            }
-            let T = target.map {
-                var target = Matrix<Float>(rows: 10, columns: 1)
-                    .map { _ in 0.01 }
-                target[Int($0), 0] = 0.99
-                return target
-            }
-            await network.train(for: I, with: T)
+            await train(samples: input, targets: target)
             let progress = Float(i + 1) / Float(count)
             if progress > self.progress + progressIncrement {
                 self.progress = progress
@@ -427,6 +416,21 @@ class NetworkViewModel: ObservableObject {
             try await Task.sleep(nanoseconds: 1_000_000_000)
             progress = 0
         }
+    }
+    
+    func train(samples: [MNISTImage], targets: [MNISTLabel]) async -> Void {
+        let I = samples.map {
+            Matrix<Float>(
+                rows: $0.count, columns: 1,
+                entries: $0.map { (Float($0) / 255.0 * 0.99) + 0.01 })
+        }
+        let T = targets.map {
+            var target = Matrix<Float>(rows: 10, columns: 1)
+                .map { _ in 0.01 }
+            target[Int($0), 0] = 0.99
+            return target
+        }
+        await network.train(for: I, with: T)
     }
     
     func reset() -> Void {

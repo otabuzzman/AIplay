@@ -6,50 +6,52 @@ struct Network {
     private var layers: [Layer]
     private var alpha: Float
     
-    // each layer's output O in batch (the outer array)
-    private var O: [[Matrix<Float>]]!
-    
     init(_ layers: [Layer], alpha: Float) {
         self.layers = layers
         self.alpha = alpha
     }
     
     // let network predict output for single input vector
-    mutating func query(for I: Matrix<Float>) -> Matrix<Float> {
-        O = [[I]] // first is output of pseudo input layer, which corresponds to input data
+    func query(for I: Matrix<Float>) -> Matrix<Float> {
+        var O = I // first is output of pseudo input layer, which corresponds to input data
         for layer in layers { // query each layer in turn with output of previous
-            O[0].append(layer.query(for: O.first!.last!))
+            O = layer.query(for: O)
         }
-        return O.first!.last! // network's output layer O
+        return O // network's output layer O
     }
     
-    // let network predict outputs for multiple input vectors (batch)
-    mutating func query(for I: [Matrix<Float>]) -> [Matrix<Float>] {
-        assert(I.count > 0, "empty batch in I")
-        O = [I]
-        for layer in layers {
+    private func query(for I: Matrix<Float>, _ O: inout [Matrix<Float>]) -> Matrix<Float> {
+        O.append(I) // first is output of pseudo input layer, which corresponds to input data
+        for layer in layers { // query each layer in turn with output of previous
             O.append(layer.query(for: O.last!))
         }
-        return O.last!
+        return O.last! // network's output layer O
     }
     
     // train network with single input vector
     mutating func train(for I: Matrix<Float>, with T: Matrix<Float>) -> Void {
+        // each layer's output
+        var O: [Matrix<Float>] = []
         // network error at output layer O as square of difference T - O
-        var E = T - query(for: I)
+        var E = T - query(for: I, &O)
         // back propagate error layer by layer in reverse order
         for layer in (0..<layers.count).reversed() {
-            E = layers[layer].train(for: O.first![layer], with: E, alpha: alpha)
+            E = layers[layer].train(for: O[layer], O[layer + 1], with: E, alpha: alpha)
         }
     }
     
     // train network with multiple input vectors (batch)
     mutating func train(for I: [Matrix<Float>], with T: [Matrix<Float>]) async -> Void {
-        assert(I.count == T.count && I.count > 0, "different batchsizes for I and T")
-        let o = query(for: I)
-        var E = I.enumerated().map { index, value in T[index] - o[index] }
+        assert(I.count == T.count && I.count > 1, "different batchsizes for I and T")
+        var E = T[0] - query(for: I[0])
+        for index in 1..<I.count - 1 {
+            E = (E + (T[index] - query(for: I[index]))) / 2
+        }
+        // each layer's output
+        var O: [Matrix<Float>] = []
+        E = (E + (T[I.count - 1] - query(for: I[I.count - 1], &O))) / 2
         for layer in (0..<layers.count).reversed() {
-            E = await layers[layer].train(for: O[layer], with: E, alpha: alpha)
+            E = layers[layer].train(for: O[layer], O[layer + 1], with: E, alpha: alpha)
         }
     }
 }
@@ -127,38 +129,12 @@ struct Layer {
     }
     
     func query(for I: Matrix<Float>) -> Matrix<Float> {
-        f.implementation(W • I, tryOnGpu: false)
-    }
-    
-    func query(for I: [Matrix<Float>]) -> [Matrix<Float>] {
-        assert(I.count > 0, "empty batch in I")
-        return I.map { f.implementation(W • $0, tryOnGpu: false) }
+        f.impl(W • I, tryOnGpu: false)
     }
 
-    mutating func train(for I: Matrix<Float>, with E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
+    mutating func train(for I: Matrix<Float>, _ O: Matrix<Float>, with E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
         let e = W.T • E
-        let o = query(for: I)
-        W += alpha * ((E * o * (1.0 - o)) • I.T)
-        return e
-    }
-    
-    mutating func train(for I: [Matrix<Float>], with E: [Matrix<Float>], alpha: Float) async -> [Matrix<Float>] {
-        assert(I.count == E.count && I.count > 0, "different batchsizes for I and E")
-        let e = E.map { W.T • $0 } // back propagation error (e) according to this layer's error (E)
-        let g = await withTaskGroup(of: Matrix<Float>.self) { batch in // batch gradient (g)
-            for i in 0..<I.count {
-                let o = query(for: I[i]) // this layer's prediction (o) for input (I[i])
-                batch.addTask {
-                    (E[i] * o * (1.0 - o)) • I[i].T // this input's (I[i]) gradient
-                }
-            }
-            var g = await batch.next()! // first gradient
-            for await result in batch { // remaining gradients
-                g = (g + result) / 2 // arithmetic mean cumulation
-            }
-            return g
-        }
-        W += alpha * g
+        W += alpha * ((E * O * (1.0 - O)) • I.T)
         return e
     }
 }
@@ -216,7 +192,7 @@ extension ActivationFunction {
 }
 
 extension ActivationFunction {
-    func implementation(_ input: Matrix<Float>, tryOnGpu gpu: Bool = false) -> Matrix<Float> {
+    func impl(_ input: Matrix<Float>, tryOnGpu gpu: Bool = false) -> Matrix<Float> {
         let fallback = Self.impl4Cpu[self.rawValue]
         return gpu ? Self.impl4Gpu(self, input) ?? fallback(input) : Self.impl4Cpu[self.rawValue](input)
     }

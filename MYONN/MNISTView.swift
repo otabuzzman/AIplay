@@ -168,7 +168,7 @@ class MNISTViewModel: ObservableObject {
     }
     
     func fetch(_ index: Int, from: MNISTSubset.Purpose) -> (MNISTImage, MNISTLabel) {
-        let i = from == .train ? self.trainsetIndex[index] : index
+        let i = from == .train ? trainsetIndex[index] : index
         let image = (items[.images(from)] as! [MNISTImage])[i]
         let label = (items[.labels(from)] as! [MNISTLabel])[i]
         return (image, label)
@@ -178,8 +178,8 @@ class MNISTViewModel: ObservableObject {
         var images: [MNISTImage]
         var labels: [MNISTLabel]
         if from == .train {
-            images = range.map { (items[.images(from)] as! [MNISTImage])[$0] }
-            labels = range.map { (items[.labels(from)] as! [MNISTLabel])[$0] }
+            images = range.map { (items[.images(from)] as! [MNISTImage])[trainsetIndex[$0]] }
+            labels = range.map { (items[.labels(from)] as! [MNISTLabel])[trainsetIndex[$0]] }
         } else {
             images = (items[.images(from)] as! [MNISTImage])[range].map { $0 }
             labels = (items[.labels(from)] as! [MNISTLabel])[range].map { $0 }

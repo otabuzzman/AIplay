@@ -11,6 +11,7 @@ struct FolderPicker: UIViewControllerRepresentable {
         let controller = UIDocumentPickerViewController(forOpeningContentTypes: [.folder])
         controller.delegate = context.coordinator
         controller.allowsMultipleSelection = false
+        controller.directoryURL = getAppFolder()
         
         return controller
     }
