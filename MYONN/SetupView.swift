@@ -199,9 +199,10 @@ struct NetworkSetupView: View {
 }
 
 extension NetworkSetupView {
-    init(isPresented: Binding<Bool>, _ config: NetworkConfig, commit: @escaping (NetworkConfig) -> Void) {
+    init(isPresented: Binding<Bool>, commit: @escaping (NetworkConfig) -> Void) {
         _isPresented = isPresented
         
+        let config = getNetworkConfig() ?? .default
         _miniBatchSize = State(initialValue: config.miniBatchSize)
         _alpha = State(initialValue: config.alpha)
         _inputs = State(initialValue: config.inputs)

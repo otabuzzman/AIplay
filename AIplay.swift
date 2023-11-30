@@ -3,11 +3,7 @@ import PlaygroundTester
 
 struct ContentView: View {
     @State private var showAppInfo = false
-    @State private var showSetupView = false
-    
-    @StateObject private var dataset = MNISTViewModel()
-    @State private var networkConfig: NetworkConfig = .default
-    
+
     var body: some View {
         HStack {
             Label("AIplay", image: "npu")
@@ -43,11 +39,6 @@ struct ContentView: View {
                 } label: {
                     Image(systemName: "info.circle")
                 }
-                Button {
-                    showSetupView.toggle()
-                } label: {
-                    Image(systemName: "gearshape")
-                }
             }
             .font(.title)
         }
@@ -56,17 +47,7 @@ struct ContentView: View {
             appInfo(isPresented: $showAppInfo)
                 .frame(minWidth: 0, maxWidth: 512)
         }
-        .sheet(isPresented: $showSetupView) {
-            NetworkSetupView(isPresented: $showSetupView, networkConfig) { newConfig in
-                networkConfig = newConfig
-                showSetupView.toggle()
-                
-                if _isDebugAssertConfiguration() {
-                    print(networkConfig)
-                }
-            }
-        }
-        NetworkView(config: networkConfig, dataset: dataset)
+        NetworkView()
     }
 }
 
@@ -185,6 +166,13 @@ internal func getAppFolder() -> URL? {
     return appFolder
 }
 
+internal func setNetworkConfig(_ config: NetworkConfig) {
+}
+
+internal func getNetworkConfig() -> NetworkConfig? {
+    nil
+}
+
 @main
 struct AIplay: App {
     init() {
@@ -238,10 +226,7 @@ protocol AbstractFactory {
 //   usage: GenericFactory.create(DefaultFactory(), nil)
 struct DefaultFactory: AbstractFactory {
     func create(_ config: Never?) -> Network? {
-        Network([
-            Layer(numberOfInputs: 784, numberOfPUnits: 100, activationFunction: .sigmoid),
-            Layer(numberOfInputs: 100, numberOfPUnits: 10, activationFunction: .sigmoid)
-        ], alpha: 0.3)
+        GenericFactory.create(NetworkFactory(), .default)
     }
 }
 
