@@ -71,15 +71,15 @@ extension Network: CustomCoder {
         else { return nil }
         var data = from.advanced(by: Self.magicNumber.count)
         
-        guard let alpha = Float(from: data)?.bigEndian else { return nil }
+        guard let alpha = Float(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Float>.size)
         
-        guard let layersCount = Int(from: data)?.bigEndian else { return nil }
+        guard let layersCount = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
         var layers = [Layer]()
         for _ in 0..<layersCount {
-            guard let layerSize = Int(from: data)?.bigEndian else { return nil }
+            guard let layerSize = Int(from: data) else { return nil }
             data = data.advanced(by: MemoryLayout<Int>.size)
             guard let layer = Layer(from: data) else { return nil }
             layers.append(layer)
@@ -91,8 +91,8 @@ extension Network: CustomCoder {
     
     var encode: Data {
         var data = Self.magicNumber.encode
-        data += alpha.bigEndian.encode
-        data += layers.count.bigEndian.encode
+        data += alpha.encode
+        data += layers.count.encode
         layers.forEach { data += $0.encode }
         return data
     }
@@ -149,14 +149,14 @@ extension Layer: CustomCoder {
     init?(from: Data) {
         var data = from
         
-        guard let inputs = Int(from: data)?.bigEndian else { return nil }
+        guard let inputs = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        guard let punits = Int(from: data)?.bigEndian else { return nil }
+        guard let punits = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
         guard
-            let activationFunction = Int(from: data)?.bigEndian,
+            let activationFunction = Int(from: data),
             let f = ActivationFunction(rawValue: activationFunction)
         else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
@@ -167,11 +167,11 @@ extension Layer: CustomCoder {
     }
     
     var encode: Data {
-        var data = inputs.bigEndian.encode
-        data += punits.bigEndian.encode
-        data += f.rawValue.bigEndian.encode
+        var data = inputs.encode
+        data += punits.encode
+        data += f.rawValue.encode
         data += W.encode
-        return data.count.bigEndian.encode + data
+        return data.count.encode + data
     }
 }
 

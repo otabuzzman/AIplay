@@ -217,21 +217,21 @@ extension Matrix: CustomCoder where Entry: CustomNumericCoder {
     init?(from: Data) {
         var data = from
         
-        guard Int(from: data)?.bigEndian != nil else { return nil }
+        guard Int(from: data) != nil else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        guard let rows = Int(from: data)?.bigEndian else { return nil }
+        guard let rows = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        guard let columns = Int(from: data)?.bigEndian else { return nil }
+        guard let columns = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        guard let entriesCount = Int(from: data)?.bigEndian else { return nil }
+        guard let entriesCount = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
         var entries = [Entry]()
         for _ in 0..<entriesCount {
-            guard let entry = Entry(from: data)?.bigEndian else { return nil }
+            guard let entry = Entry(from: data) else { return nil }
             entries.append(entry) 
             data = data.advanced(by: MemoryLayout<Entry>.size)
         }
@@ -240,10 +240,10 @@ extension Matrix: CustomCoder where Entry: CustomNumericCoder {
     }
     
     var encode: Data {
-        var data = rows.bigEndian.encode
-        data += columns.bigEndian.encode
-        data += entries.count.bigEndian.encode
-        entries.forEach { data += $0.bigEndian.encode }
-        return data.count.bigEndian.encode + data
+        var data = rows.encode
+        data += columns.encode
+        data += entries.count.encode
+        entries.forEach { data += $0.encode }
+        return data.count.encode + data
     }
 }

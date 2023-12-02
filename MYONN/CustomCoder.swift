@@ -6,18 +6,16 @@ protocol CustomEncoder {
     var encode: Data { get }
 }
 
-extension CustomEncoder {
-    var encode: Data {
-        withUnsafeBytes(of: self) { Data($0) }
-    }
-}
-
 protocol CustomDecoder {
     init?(from: Data)
 }
 
+protocol CustomNumericCoder: CustomCoder where Self: ExpressibleByIntegerLiteral {
+    var bigEndian: Self { get }
+}
+
 // https://stackoverflow.com/a/38024025
-extension CustomDecoder where Self: ExpressibleByIntegerLiteral {
+extension CustomNumericCoder {
     init?(from: Data) {
         guard
             from.count >= MemoryLayout<Self>.size
@@ -26,12 +24,12 @@ extension CustomDecoder where Self: ExpressibleByIntegerLiteral {
         _ = withUnsafeMutableBytes(of: &value) {
             from.copyBytes(to: $0, count: MemoryLayout<Self>.size)
         }
-        self = value
+        self = value.bigEndian
     }
-}
-
-protocol CustomNumericCoder: CustomCoder {
-    var bigEndian: Self { get }
+    
+    var encode: Data {
+        withUnsafeBytes(of: self.bigEndian) { Data($0) }
+    }
 }
 
 extension Int: CustomNumericCoder { }
@@ -78,10 +76,10 @@ extension Bool: CustomDecoder {
 
 extension Array: CustomEncoder where Element: CustomEncoder {
     var encode: Data {
-            var data = self.count.encode
-            self.forEach { data += $0.encode }
-            return data
-        }
+        var data = self.count.encode
+        self.forEach { data += $0.encode }
+        return data
+    }
 }
 
 extension Array: CustomDecoder where Element: CustomDecoder {
