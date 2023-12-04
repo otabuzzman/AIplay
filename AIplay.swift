@@ -240,7 +240,7 @@ extension NetworkConfig {
     // NYONN sample configuration
     //   usage: GenericFactory.create(NetworkFactory(), .myonn)
     static let myonn = Self(
-        30, 0.3, LayerConfig(784, 0, .identity, false), [
+        7, 30, 0.3, LayerConfig(784, 0, .identity, false), [
             LayerConfig(784, 100, .sigmoid, false),
             LayerConfig(100, 10, .sigmoid, false)])
 }

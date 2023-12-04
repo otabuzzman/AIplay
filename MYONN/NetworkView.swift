@@ -151,9 +151,9 @@ struct NetworkView: View {
                 }
                 Section {
                     HStack {
-                        Text("Epochs trained so far")
+                        Text("Epochs trained (wanted)")
                         Spacer()
-                        Text("\(viewModel.epochsTrained)")
+                        Text("\(viewModel.epochsTrained) (\(viewModel.epochsWanted))")
                     }
                     HStack {
                         Text("Duration of last epoch")
@@ -311,6 +311,7 @@ extension NetworkView {
     class NetworkViewModel: ObservableObject {
         var network: Network
         private(set) var dataset: MNISTViewModel
+        var epochsWanted: Int
         var miniBatchSize: Int
         
         @Published private(set) var samplesTrained = 0  
@@ -328,6 +329,7 @@ extension NetworkView {
         init(config: NetworkConfig = .default) {
             network = GenericFactory.create(NetworkFactory(), config)! // probably save to unwrap
             dataset = MNISTViewModel()
+            epochsWanted = config.epochsWanted
             miniBatchSize = config.miniBatchSize
         }
         

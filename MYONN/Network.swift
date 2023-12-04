@@ -211,6 +211,7 @@ extension ActivationFunction {
 }
 
 struct NetworkConfig {
+    var epochsWanted: Int
     var miniBatchSize: Int
     var alpha: Float
     var inputs: LayerConfig
@@ -218,7 +219,8 @@ struct NetworkConfig {
 }
 
 extension NetworkConfig {
-    init(_ miniBatchSize: Int, _ alpha: Float, _ inputs: LayerConfig, _ layers: [LayerConfig]) {
+    init(_ epochsWanted: Int, _ miniBatchSize: Int, _ alpha: Float, _ inputs: LayerConfig, _ layers: [LayerConfig]) {
+        self.epochsWanted = epochsWanted
         self.miniBatchSize = miniBatchSize
         self.alpha = alpha
         self.inputs = inputs
@@ -228,13 +230,14 @@ extension NetworkConfig {
 
 extension NetworkConfig: CustomStringConvertible {
     var description: String {
-        "NetworkConfig(miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers)"
+        "NetworkConfig(epochsWanted: \(epochsWanted), miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers)"
     }
 }
 
 extension NetworkConfig: CustomCoder {
     var encode: Data {
-        var data = miniBatchSize.encode
+        var data = epochsWanted.encode
+        data += miniBatchSize.encode
         data += alpha.encode
         data += inputs.encode
         data += layers.count.encode
@@ -245,6 +248,9 @@ extension NetworkConfig: CustomCoder {
     init?(from: Data) {
         var data = from
         
+        guard let epochsWanted = Int(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+
         guard let miniBatchSize = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
@@ -268,7 +274,7 @@ extension NetworkConfig: CustomCoder {
             layers.append(layerConfig)
         }
         
-        self.init(miniBatchSize, alpha, inputs, layers)
+        self.init(epochsWanted, miniBatchSize, alpha, inputs, layers)
     }
 }
 
