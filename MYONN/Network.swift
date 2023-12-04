@@ -82,8 +82,8 @@ extension Network: CustomCoder {
             guard let layerSize = Int(from: data) else { return nil }
             data = data.advanced(by: MemoryLayout<Int>.size)
             guard let layer = Layer(from: data) else { return nil }
-            layers.append(layer)
             data = data.advanced(by: layerSize)
+            layers.append(layer)
         }
         
         self.init(layers, alpha: alpha)
@@ -155,11 +155,9 @@ extension Layer: CustomCoder {
         guard let punits = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        guard
-            let activationFunction = Int(from: data),
-            let f = ActivationFunction(rawValue: activationFunction)
-        else { return nil }
+        guard let activationFunction = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
+        let f = ActivationFunction(rawValue: activationFunction) ?? .identity
         
         guard let W = Matrix<Float>(from: data) else { return nil }
         
@@ -234,6 +232,46 @@ extension NetworkConfig: CustomStringConvertible {
     }
 }
 
+extension NetworkConfig: CustomCoder {
+    var encode: Data {
+        var data = miniBatchSize.encode
+        data += alpha.encode
+        data += inputs.encode
+        data += layers.count.encode
+        layers.forEach { data += $0.encode }
+        return data
+    }
+    
+    init?(from: Data) {
+        var data = from
+        
+        guard let miniBatchSize = Int(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        guard let alpha = Float(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Float>.size)
+        
+        guard let layerConfigSize = Int(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        guard let inputs = LayerConfig(from: data) else { return nil }
+        data = data.advanced(by: layerConfigSize)
+        
+        guard let layerConfigCount = Int(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        var layers = [LayerConfig]()
+        for _ in 0..<layerConfigCount {
+            guard let layerConfigSize = Int(from: data) else { return nil }
+            data = data.advanced(by: MemoryLayout<Int>.size)
+            guard let layerConfig = LayerConfig(from: data) else { return nil }
+            data = data.advanced(by: layerConfigSize)
+            layers.append(layerConfig)
+        }
+        
+        self.init(miniBatchSize, alpha, inputs, layers)
+    }
+}
+
 struct LayerConfig: Identifiable, Hashable {
     var id = UUID()
     var inputs: Int
@@ -254,6 +292,34 @@ extension LayerConfig {
 extension LayerConfig: CustomStringConvertible {
     var description: String {
         "LayerConfig(inputs: \(inputs), punits: \(punits), f: \(f), tryOnGpu: \(tryOnGpu)"
+    }
+}
+
+extension LayerConfig: CustomCoder {
+    var encode: Data {
+        var data = inputs.encode
+        data += punits.encode
+        data += f.rawValue.encode
+        data += tryOnGpu.encode
+        return data.count.encode + data
+    }
+    
+    init?(from: Data) {
+        var data = from
+        
+        guard let inputs = Int(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        guard let punits = Int(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        guard let activationFunction = Int(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        let f = ActivationFunction(rawValue: activationFunction) ?? .identity
+        
+        guard let tryOnGpu = Bool(from: data) else { return nil }
+        
+        self.init(inputs, punits, f, tryOnGpu)
     }
 }
 

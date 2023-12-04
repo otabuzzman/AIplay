@@ -232,8 +232,8 @@ extension Matrix: CustomCoder where Entry: CustomNumericCoder {
         var entries = [Entry]()
         for _ in 0..<entriesCount {
             guard let entry = Entry(from: data) else { return nil }
-            entries.append(entry) 
             data = data.advanced(by: MemoryLayout<Entry>.size)
+            entries.append(entry) 
         }
         
         self.init(rows: rows, columns: columns, entries: entries)

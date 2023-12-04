@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 
 struct NetworkView: View {
     @ObservedObject private var viewModel = NetworkViewModel()
+    @State private var actConfig = getNetworkConfig() ?? .default
     
     @State private var longRunTask: Task<Void, Never>?
     @State private var longRunBusy = false
@@ -287,7 +288,7 @@ struct NetworkView: View {
             }
         }
         .sheet(isPresented: $showSetupView) {
-            NetworkSetupView(isPresented: $showSetupView) { newConfig in
+            NetworkSetupView(isPresented: $showSetupView, actConfig) { newConfig in
                 guard
                     let network = GenericFactory.create(NetworkFactory(), newConfig)
                 else { return }
@@ -299,7 +300,7 @@ struct NetworkView: View {
                 showSetupView.toggle()
                 
                 if _isDebugAssertConfiguration() {
-                    print(newConfig)
+                    let _ = print(newConfig)
                 }
             }
         }
@@ -309,7 +310,7 @@ struct NetworkView: View {
 extension NetworkView {
     class NetworkViewModel: ObservableObject {
         var network: Network
-        var dataset: MNISTViewModel
+        private(set) var dataset: MNISTViewModel
         var miniBatchSize: Int
         
         @Published private(set) var samplesTrained = 0  
@@ -324,8 +325,7 @@ extension NetworkView {
         
         @Published private(set) var duration: TimeInterval = 0
         
-        init() {
-            let config = getNetworkConfig() ?? .default
+        init(config: NetworkConfig = .default) {
             network = GenericFactory.create(NetworkFactory(), config)! // probably save to unwrap
             dataset = MNISTViewModel()
             miniBatchSize = config.miniBatchSize

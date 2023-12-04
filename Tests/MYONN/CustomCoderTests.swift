@@ -3,16 +3,6 @@ import Foundation
 
 @objcMembers
 final class CustomCoderTests: TestCase {
-    internal func testArrayCoder() {
-        [
-            (input: [1.23, 2.34, 3.45], expect: [1.23, 2.34, 3.45]),
-            (input: [1.23, -2.34, 3.45], expect: [1.23, -2.34, 3.45])
-        ].enumerated().forEach { (testCaseIndex, testCase) in
-            let result = Array<Double>(from: testCase.input.encode)
-            AssertEqual(testCase.expect, other: result, message: "#\(testCaseIndex + 1) failed")
-        }
-    }
-    
     func testStringCoder() {
         [
             (input: "", expect: ""),

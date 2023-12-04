@@ -54,7 +54,7 @@ struct ContentView: View {
 func appInfo(isPresented: Binding<Bool>) -> some View {
     let section00 = try! AttributedString(markdown:
             """
-            AIplay implements a neural network MVP. It queries the network (prediction) with number images from the MNIST dataset. Handwritten number entries using finger or Apple Pencil are also supported. There is no configuration interface. Changing parameters must therefore be done in source code and requires Xcode or Swift Playgrounds 4 (iPadOS).
+            AIplay implements a neural network MVP. It queries the network (prediction) with number images from the MNIST dataset. Handwritten number entries using finger or Apple Pencil are also supported.
             """, options: .init(interpretedSyntax: .full))
     var section01 = try! AttributedString(markdown:
             """
@@ -167,10 +167,14 @@ internal func getAppFolder() -> URL? {
 }
 
 internal func setNetworkConfig(_ config: NetworkConfig) {
+    UserDefaults.standard.set(config.encode, forKey: "networkConfig")
 }
 
 internal func getNetworkConfig() -> NetworkConfig? {
-    nil
+    guard
+        let data = UserDefaults.standard.object(forKey: "networkConfig") as? Data
+    else { return nil }
+    return NetworkConfig(from: data)
 }
 
 @main
