@@ -295,6 +295,7 @@ struct NetworkView: View {
                 viewModel.network = network
                 viewModel.miniBatchSize = newConfig.miniBatchSize
                 
+                actConfig = newConfig
                 setNetworkConfig(newConfig)
                 
                 showSetupView.toggle()
@@ -327,7 +328,11 @@ extension NetworkView {
         @Published private(set) var duration: TimeInterval = 0
         
         init(config: NetworkConfig = .default) {
-            network = GenericFactory.create(NetworkFactory(), config)! // probably save to unwrap
+            if let model = Bundle.main.url(forResource: "default-model", withExtension: "nndx") {
+                network = try! Network(from: Data(contentsOf: model))! // should not fail
+            } else {
+                network = GenericFactory.create(NetworkFactory(), config)! // probably save to unwrap
+            }
             dataset = MNISTViewModel()
             epochsWanted = config.epochsWanted
             miniBatchSize = config.miniBatchSize

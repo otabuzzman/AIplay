@@ -100,6 +100,7 @@ struct NetworkSetupView: View {
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
                             .frame(width: 96)
+                            .disabled(true)
                     }
                     HStack {
                         Text("Mini-batch size")
