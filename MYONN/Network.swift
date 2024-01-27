@@ -129,12 +129,12 @@ struct Layer {
     }
     
     func query(for I: Matrix<Float>) -> Matrix<Float> {
-        f.impl(W • I, tryOnGpu: false)
+        f.apply(W • I, tryOnGpu: true)
     }
 
     mutating func train(for I: Matrix<Float>, _ O: Matrix<Float>, with E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
         let e = W.T • E
-        W += alpha * ((E * O * (1.0 - O)) • I.T)
+        W += alpha * ((E * f.apply(O, derivative: true, tryOnGpu: false)) • I.T)
         return e
     }
 }
@@ -190,21 +190,31 @@ extension ActivationFunction {
 }
 
 extension ActivationFunction {
-    func impl(_ input: Matrix<Float>, tryOnGpu gpu: Bool = false) -> Matrix<Float> {
-        let fallback = Self.impl4Cpu[self.rawValue]
-        return gpu ? Self.impl4Gpu(self, input) ?? fallback(input) : Self.impl4Cpu[self.rawValue](input)
+    func apply(_ input: Matrix<Float>, derivative: Bool = false, tryOnGpu gpu: Bool = false) -> Matrix<Float> {
+        let fallback = Self.applyOnCpu[self.rawValue]
+        return gpu
+        ? Self.applyOnGpu(self, input, derivative) ?? fallback(input, derivative)
+        : Self.applyOnCpu[self.rawValue](input, derivative)
     }
     
-    private static let impl4Cpu: [(Matrix<Float>) -> Matrix<Float>] = [
-        { dummy in dummy },
-        { input in input }, // identity
-        { input in input.map { 1.0 / (1.0 + expf(-$0)) } } // sigmoid
+    private static let applyOnCpu: [(Matrix<Float>, Bool) -> Matrix<Float>] = [
+        { nouse, _ in nouse },
+        { input, _ in input }, // identity
+        { input, derivative in input.map { // sigmoid
+            derivative
+            ? $0 * (1.0 - $0)
+            : 1.0 / (1.0 + expf(-$0)) } }
     ]
     
-    private static func impl4Gpu(_ f: ActivationFunction, _ input: Matrix<Float>) -> Matrix<Float>? {
+    private static func applyOnGpu(_ f: ActivationFunction, _ input: Matrix<Float>, _ derivative: Bool) -> Matrix<Float>? {
         var result: Matrix<Float>?
-        if let entries = try? activationKernel(f, input.entries) {
+        do {
+            let entries = try activationKernel(f, input.entries, derivative)
             result = Matrix<Float>(rows: input.rows, columns: input.columns, entries: entries)
+        } catch {
+            if _isDebugAssertConfiguration() {
+                let _ = print(error)
+            }
         }
         return result
     }
@@ -358,11 +368,23 @@ kernel void sigmoid(
                   uint  id     [[ thread_position_in_grid ]]) {
     result[id] = 1.0 / (1.0 + exp(-input[id]));
 }
+kernel void sigmoid_derivative(
+    const device float *input  [[ buffer(0) ]],
+          device float *result [[ buffer(1) ]],
+                  uint  id     [[ thread_position_in_grid ]]) {
+    result[id] = 1.0 * (1.0 - input[id]);
+}
 """
 
 fileprivate let device = MTLCreateSystemDefaultDevice()
 fileprivate let queue = device?.makeCommandQueue()
 fileprivate let library = try? device?.makeLibrary(source: activationLibrary, options: nil)
+
+fileprivate let sigmoid = library?.makeFunction(name: "sigmoid")
+fileprivate let sigmoid_derivative = library?.makeFunction(name: "sigmoid_derivative")
+
+fileprivate let inputBuffer = device?.makeBuffer(length: 400)
+fileprivate let resultBuffer = device?.makeBuffer(length: 400)
 
 fileprivate enum ActivationKernelError: Error {
     case apiException(String, Error)
@@ -380,17 +402,19 @@ fileprivate extension ActivationKernelError {
     }
 }
 
-fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Float]) throws -> [Float] {
-    var input = input
+fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Float], _ derivative: Bool) throws -> [Float] {
+    // var input = input
     let inputCount = input.count * MemoryLayout<Float>.size
-    var result = Array<Float>(repeating: 0, count: inputCount)
-    
+    // var result = Array<Float>(repeating: 0, count: inputCount)
+    /*
     guard
         let inputBuffer = device?.makeBuffer(bytes: &input, length: inputCount),
         let resultBuffer = device?.makeBuffer(bytes: &result, length: inputCount)
     else {
         throw ActivationKernelError.apiReturnedNil("makeBuffer")
     }
+     */
+    inputBuffer?.contents().copyMemory(from: input, byteCount: inputCount)
     
     guard
         let commandBuffer = queue?.makeCommandBuffer()
@@ -406,23 +430,23 @@ fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Floa
     
     commandEncoder.setBuffer(inputBuffer, offset: 0, index: 0)
     commandEncoder.setBuffer(resultBuffer, offset: 0, index: 1)
-    
+    /*
     guard
-        let function = library?.makeFunction(name: "\(function)")
+        let function = library?.makeFunction(name: derivative ? "\(function)_derivative" : "\(function)")
     else {
         throw ActivationKernelError.apiReturnedNil("makeFunction")
     }
-    
+     */
     do {
-        let descriptor = try device!.makeComputePipelineState(function: function)
+        let descriptor = try device!.makeComputePipelineState(function: derivative ? sigmoid_derivative! : sigmoid!)
         commandEncoder.setComputePipelineState(descriptor)
     } catch {
         throw ActivationKernelError.apiException("makeComputePipelineState", error)
     }
     
-    let threadsWidth = 32
+    let threadsWidth = input.count
     let threadsCount = MTLSizeMake(threadsWidth, 1, 1)
-    let groupsWidth = (inputCount + threadsWidth - 1) / threadsWidth
+    let groupsWidth = (input.count + threadsWidth - 1) / threadsWidth
     let groupsCount = MTLSizeMake(groupsWidth, 1, 1)
     commandEncoder.dispatchThreadgroups(groupsCount, threadsPerThreadgroup: threadsCount)
     
@@ -431,6 +455,6 @@ fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Floa
     commandBuffer.commit()
     commandBuffer.waitUntilCompleted()
     
-    let typedResult = resultBuffer.contents().bindMemory(to: Float.self, capacity: input.count)
+    let typedResult = resultBuffer!.contents().bindMemory(to: Float.self, capacity: input.count)
     return Array(UnsafeBufferPointer<Float>(start: typedResult, count: input.count))
 }
