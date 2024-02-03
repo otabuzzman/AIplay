@@ -1,12 +1,11 @@
 # AIplay
-A lab for playing around with AI concepts. The lab intends to gain some practise in implementing running programs of straight forward examples for Neural Networks and Deep Learning.
+Das Repository enthält die Sourcen der App zum Developer's Corner Artikel Das eigene KI-Modell programmieren im Apple-Magazin [Mac & i Heft 1/2024, S. 126[(https://www.heise.de/select/mac-and-i/2024/1/2326112085400864712).
 
-## MYONN
-A SwiftUI implementation of Make Your Own Neural Network (MYONN). The app downloads the MNIST dataset and enables training and prediction using the files included in the set. A sketch area accepts handwritten input for prediction. There are save and load functions for trained models in a simple and convenient format.
+A SwiftUI implementation of the textbook Make Your Own Neural Network (MYONN). The app downloads the MNIST dataset and enables training and prediction using the files included in the set. A sketch area accepts handwritten input for prediction. There are save and load functions for trained models in a simple and convenient format.
 
-The app features stochastic gradient descent (SGD) and mini-batch which is the default. Batch size is a hard-coded value of 30. To make use of SGD set `miniBatchSize` in `NetworkView.swift` to 1. Mini-batch makes use of any available cores. To enable Metal compute shader for the activation function set `tryOnGpu` in `Network.swift` to `true`.
+The app features stochastic gradient descent (SGD) and mini-batch which is the default. The default network configuration is 784/ 100/ 10 fully-connected input/ hidden/ output nodes with sigmoid activation. To enable SGD set Mini-batch size in setup to 1.
 
-The hard-coded network configuration is 784/ 100/ 10 fully-connected input/ hidden/ output nodes with sigmoid activation.
+
 
 ### Usage
 The app is on [TestFlight](https://testflight.apple.com/join/M2uSLM1e). After installation it asks on the first start for a folder to store the MNIST dataset. The four MNIST status indicators turn into green when all files have been downloaded and unzipped. There is some basic usage information when tapping the circled i in the top right corner.
@@ -49,9 +48,8 @@ Apps used on iPad
 |CustomCoder.swift|An encode/ decode implementation.|
 |FolderPicker.swift|A view. The function is in the name.|
 |GaussianDistribution.swift|A class to provide random floats with normal distribution.|
-|Matrix.swift|A somewhat pimped Array for matrix operations. Leverages vDSP.|
+|Matrix.swift|A somewhat pimped Array type for matrix operations. Leverages vDSP.|
 |MNISTView.swift|MVVM to put MNIST on disk.|
-|MYONNView.swift|The top-level view.|
 |Network.swift|The network implementation from MYONN book. Also includes Metal compute shader code.|
 |NetworkView.swift|MVVM to make use of network in SwiftUI.|
 |CanvasView.swift|The sketch area view for handwritten input.|
