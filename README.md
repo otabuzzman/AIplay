@@ -1,5 +1,5 @@
 # AIplay
-Das Repository enthält die Sourcen der App zum Developer's Corner Artikel Das eigene KI-Modell programmieren im Apple-Magazin [Mac & i Heft 1/2024, S. 126](https://www.heise.de/select/mac-and-i/2024/1/2326112085400864712).
+Das Repository enthält die Sourcen der App zum Developer's Corner Artikel _Das eigene KI-Modell programmieren_ im Apple-Magazin [Mac & i Heft 1/2024, S. 126](https://www.heise.de/select/mac-and-i/2024/1/2326112085400864712).
 
 A SwiftUI implementation of the textbook Make Your Own Neural Network (MYONN). The app downloads the MNIST dataset and enables training and prediction using the files included in the set. A sketch area accepts handwritten input for prediction. There are save and load functions for trained models in a simple and convenient format.
 
