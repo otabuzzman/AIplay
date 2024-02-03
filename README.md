@@ -54,10 +54,7 @@ Apps used on iPad
 |NetworkView.swift|MVVM to make use of network in SwiftUI.|
 |CanvasView.swift|The sketch area view for handwritten input.|
 |SetupView.swift|Simple network and layer configuration UI.|
-|MYONN-B30-0300-001-01.nnxd|Model in Neural Network Exchange Document (nndx) format. First functioning training. Mini-batch (size 30), learning rate 0.3, 1 epoch. Testset performance 0.9073.|
-|MYONN-B30-0300-001-02.nnxd|Model in Neural Network Exchange Document (nndx) format. First functioning training with Swift concurrency. Mini-batch (size 30), learning rate 0.3, 1 epoch. Testset performance 0.8942.|
-|MYONN-SGD-0300-001-01.nnxd|Model in Neural Network Exchange Document (nndx) format. First functioning training. Stoachstic gradient descent, learning rate 0.3, 1 epoch. Testset performance 0.9444.|
-|MYONN-SGD-0300-001-02.nnxd|Model in Neural Network Exchange Document (nndx) format. First functioning training with Swift concurrency. Stoachstic gradient descent, learning rate 0.3, 1 epoch. Testset performance 0.9424.|
+|default-model.nnxd|Model in Neural Network Exchange Document (nndx) format. Loaded on first app launch. Mini-batch (size 30), learning rate 0.3, 7 epochs. Testset performance 0.9524.|
 
 ### References
 - [Code Your Own Neural Network](https://www.amazon.de/Code-Neural-Network-step-step-ebook/dp/B00TXPGEHG) by Stephen C. Shaffer. A short but nevertheless valuable breviary with focus on practice.
