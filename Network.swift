@@ -20,6 +20,7 @@ struct Network {
         return O // network's output layer O
     }
     
+    // predict for single input vector and return each layer’s output
     private func query(for I: Matrix<Float>, _ O: inout [Matrix<Float>]) -> Matrix<Float> {
         O.append(I) // first is output of pseudo input layer, which corresponds to input data
         for layer in layers { // query each layer in turn with output of previous
@@ -32,7 +33,7 @@ struct Network {
     mutating func train(for I: Matrix<Float>, with T: Matrix<Float>) -> Void {
         // each layer's output
         var O: [Matrix<Float>] = []
-        // network error at output layer O as square of difference T - O
+        // network error at output layer O as difference of T - O
         var E = T - query(for: I, &O)
         // back propagate error layer by layer in reverse order
         for layer in (0..<layers.count).reversed() {
@@ -42,7 +43,7 @@ struct Network {
     
     // train network with multiple input vectors (batch)
     mutating func train(for I: [Matrix<Float>], with T: [Matrix<Float>]) async -> Void {
-        assert(I.count == T.count && I.count > 1, "different batchsizes for I and T")
+        assert(I.count == T.count && I.count > 1, "different batch sizes for I and T")
         var E = T[0] - query(for: I[0])
         for index in 1..<I.count - 1 {
             E = (E + (T[index] - query(for: I[index]))) / 2
@@ -131,7 +132,7 @@ struct Layer {
     func query(for I: Matrix<Float>) -> Matrix<Float> {
         f.apply(W • I, tryOnGpu: true)
     }
-
+    
     mutating func train(for I: Matrix<Float>, _ O: Matrix<Float>, with E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
         let e = W.T • E
         W += alpha * ((E * f.apply(O, derivative: true, tryOnGpu: false)) • I.T)
@@ -260,7 +261,7 @@ extension NetworkConfig: CustomCoder {
         
         guard let epochsWanted = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
-
+        
         guard let miniBatchSize = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
@@ -407,12 +408,12 @@ fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Floa
     let inputCount = input.count * MemoryLayout<Float>.size
     // var result = Array<Float>(repeating: 0, count: inputCount)
     /*
-    guard
-        let inputBuffer = device?.makeBuffer(bytes: &input, length: inputCount),
-        let resultBuffer = device?.makeBuffer(bytes: &result, length: inputCount)
-    else {
-        throw ActivationKernelError.apiReturnedNil("makeBuffer")
-    }
+     guard
+         let inputBuffer = device?.makeBuffer(bytes: &input, length: inputCount),
+         let resultBuffer = device?.makeBuffer(bytes: &result, length: inputCount)
+     else {
+         throw ActivationKernelError.apiReturnedNil("makeBuffer")
+     }
      */
     inputBuffer?.contents().copyMemory(from: input, byteCount: inputCount)
     
@@ -431,11 +432,11 @@ fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Floa
     commandEncoder.setBuffer(inputBuffer, offset: 0, index: 0)
     commandEncoder.setBuffer(resultBuffer, offset: 0, index: 1)
     /*
-    guard
-        let function = library?.makeFunction(name: derivative ? "\(function)_derivative" : "\(function)")
-    else {
-        throw ActivationKernelError.apiReturnedNil("makeFunction")
-    }
+     guard
+         let function = library?.makeFunction(name: derivative ? "\(function)_derivative" : "\(function)")
+     else {
+         throw ActivationKernelError.apiReturnedNil("makeFunction")
+     }
      */
     do {
         let descriptor = try device!.makeComputePipelineState(function: derivative ? sigmoid_derivative! : sigmoid!)
