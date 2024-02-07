@@ -35,7 +35,7 @@ struct Network {
         var O: [Matrix<Float>] = []
         // network error at output layer O as difference of T - O
         var E = T - query(for: I, &O)
-        // back propagate error layer by layer in reverse order
+        // back propagate error and update weights layer by layer in reverse order
         for layer in (0..<layers.count).reversed() {
             /*
              * layer holds indices from last to first layer. these correspond
@@ -76,7 +76,7 @@ struct Network {
         }
         // mean error of last but one layer based on mean network error and gradient for batch
         var e = layers[layers.count - 1].train(with: G, E, alpha: alpha)
-        // back propagate mean error layer by layer in reverse order
+        // back propagate mean error and update weights layer by layer in reverse order
         for layer in (0..<layers.count - 1).reversed() {
             e = layers[layer].train(for: O[layer], O[layer + 1], e, alpha: alpha)
         }
