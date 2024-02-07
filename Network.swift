@@ -47,19 +47,19 @@ struct Network {
         var O: [Matrix<Float>] = [] // mean layer outputs for batch
         _ = query(for: I[0], &O) // 1st sets O
         var E = T[0] - O.last! // mean network error for batch
-        var G = layers.last!.gradient(for: O[O.count - 2], O[O.count - 1], E) // mean network gradient for batch
+        var G = layers.last!.gradient(for: O.lastButOne!, O.last!, E) // mean network gradient for batch
         for index in 1..<I.count {
             var o: [Matrix<Float>] = []
             _ = query(for: I[index], &o) // outputs for this input
             o.enumerated().forEach { i, v in O[i] = (O[i] + v) / 2 } // update mean in O
             let e = T[index] - o.last!
             E = (E + e) / 2 // update mean in E
-            let g = layers.last!.gradient(for: o[o.count - 2], o[o.count - 1], e)
+            let g = layers.last!.gradient(for: o[o.count - 2], o.last!, e)
             G = (G + g) / 2 // update mean in G
         }
-        E = layers[layers.count - 1].train(with: G, E, alpha: alpha)
+        var e = layers[layers.count - 1].train(with: G, E, alpha: alpha)
         for layer in (0..<layers.count - 1).reversed() {
-            E = layers[layer].train(for: O[layer], O[layer + 1], E, alpha: alpha)
+            e = layers[layer].train(for: O[layer], O[layer + 1], e, alpha: alpha)
         }
     }
 }
@@ -369,6 +369,17 @@ struct NetworkFactory: AbstractFactory {
                 activationFunction: layer.f))
         }
         return Network(layers, alpha: config.alpha)
+    }
+}
+
+extension Array {
+    var lastButOne: Self.Element? {
+        get {
+            guard
+                self.count > 1
+            else { return nil }
+            return self[self.count - 2]
+        }
     }
 }
 
