@@ -37,22 +37,30 @@ struct Network {
         var E = T - query(for: I, &O)
         // back propagate error layer by layer in reverse order
         for layer in (0..<layers.count).reversed() {
-            E = layers[layer].train(for: O[layer], O[layer + 1], with: E, alpha: alpha)
+            E = layers[layer].train(for: O[layer], O[layer + 1], E, alpha: alpha)
         }
     }
     
     // train network with multiple input vectors (batch)
     mutating func train(for I: [Matrix<Float>], with T: [Matrix<Float>]) async -> Void {
         assert(I.count == T.count && I.count > 1, "different batch sizes for I and T")
-        var E = T[0] - query(for: I[0])
-        for index in 1..<I.count - 1 {
-            E = (E + (T[index] - query(for: I[index]))) / 2
+        var O: [Matrix<Float>] = [] // mean layer outputs for batch
+        _ = query(for: I[0], &O) // 1st sets O
+        var E = T[0] - O[0] // mean network error for batch
+        var G = layers.last?.gradient(for: O[O.count - 2], O[O.count - 1], E) // mean network gradient for batch
+        for index in 1..<I.count {
+            let o: [Matrix<Float>] = []
+            let i = query(for: I[index], &o) // outputs for this input
+            o.enumerated().forEach { i, v in O[i] = (O[i] + v) / 2 } // update mean in O
+            let e = T[index] - i[index]
+            E = (E + e) / 2 // update mean in E
+            let g = layers.last?.gradient(for: o[o.count - 2], o[o.count - 1], e)
+            G = (G + g) / 2 // update mean in G
+            }
         }
-        // each layer's output
-        var O: [Matrix<Float>] = []
-        E = (E + (T[I.count - 1] - query(for: I[I.count - 1], &O))) / 2
-        for layer in (0..<layers.count).reversed() {
-            E = layers[layer].train(for: O[layer], O[layer + 1], with: E, alpha: alpha)
+        E = layers.last?.train(for: G, O, E, alpha: alpha)
+        for layer in (0..<layers.count - 1).reversed() {
+            E = layers[layer].train(for: O[layer], O[layer + 1], E, alpha: alpha)
         }
     }
 }
@@ -133,10 +141,18 @@ struct Layer {
         f.apply(W • I, tryOnGpu: true)
     }
     
-    mutating func train(for I: Matrix<Float>, _ O: Matrix<Float>, with E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
+    func train(for I: Matrix<Float>, _ O: Matrix<Float>, _ E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
+        train(for: gradient(for: I, O, E), E, alpha: alpha)
+    }
+
+    mutating func train(for G: Matrix<Float>, _ E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
         let e = W.T • E
-        W += alpha * ((E * f.apply(O, derivative: true, tryOnGpu: false)) • I.T)
+        W += alpha * G
         return e
+    }
+
+    func gradient(for I: Matrix<Float>, _ O: Matrix<Float>, _ E: Matrix<Float>) -> Matrix<Float> {
+        (E * f.apply(O, derivative: true, tryOnGpu: false)) • I.T
     }
 }
 
