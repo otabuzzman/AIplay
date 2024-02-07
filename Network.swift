@@ -47,18 +47,17 @@ struct Network {
         var O: [Matrix<Float>] = [] // mean layer outputs for batch
         _ = query(for: I[0], &O) // 1st sets O
         var E = T[0] - O[0] // mean network error for batch
-        var G = layers.last?.gradient(for: O[O.count - 2], O[O.count - 1], E) // mean network gradient for batch
+        var G = layers.last!.gradient(for: O[O.count - 2], O[O.count - 1], E) // mean network gradient for batch
         for index in 1..<I.count {
-            let o: [Matrix<Float>] = []
+            var o: [Matrix<Float>] = []
             let i = query(for: I[index], &o) // outputs for this input
             o.enumerated().forEach { i, v in O[i] = (O[i] + v) / 2 } // update mean in O
-            let e = T[index] - i[index]
+            let e = T[index] - i
             E = (E + e) / 2 // update mean in E
-            let g = layers.last?.gradient(for: o[o.count - 2], o[o.count - 1], e)
+            let g = layers.last!.gradient(for: o[o.count - 2], o[o.count - 1], e)
             G = (G + g) / 2 // update mean in G
-            }
         }
-        E = layers.last?.train(for: G, O, E, alpha: alpha)
+        E = layers[layers.count - 1].train(with: G, E, alpha: alpha)
         for layer in (0..<layers.count - 1).reversed() {
             E = layers[layer].train(for: O[layer], O[layer + 1], E, alpha: alpha)
         }
@@ -141,18 +140,18 @@ struct Layer {
         f.apply(W • I, tryOnGpu: true)
     }
     
-    func train(for I: Matrix<Float>, _ O: Matrix<Float>, _ E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
-        train(for: gradient(for: I, O, E), E, alpha: alpha)
+    mutating func train(for I: Matrix<Float>, _ O: Matrix<Float>, _ E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
+        train(with: gradient(for: I, O, E), E, alpha: alpha)
     }
-
-    mutating func train(for G: Matrix<Float>, _ E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
+    
+    mutating func train(with G: Matrix<Float>, _ E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
         let e = W.T • E
         W += alpha * G
         return e
     }
-
+    
     func gradient(for I: Matrix<Float>, _ O: Matrix<Float>, _ E: Matrix<Float>) -> Matrix<Float> {
-        (E * f.apply(O, derivative: true, tryOnGpu: false)) • I.T
+        E * f.apply(O, derivative: true, tryOnGpu: false) • I.T
     }
 }
 
@@ -425,10 +424,10 @@ fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Floa
     // var result = Array<Float>(repeating: 0, count: inputCount)
     /*
      guard
-         let inputBuffer = device?.makeBuffer(bytes: &input, length: inputCount),
-         let resultBuffer = device?.makeBuffer(bytes: &result, length: inputCount)
+     let inputBuffer = device?.makeBuffer(bytes: &input, length: inputCount),
+     let resultBuffer = device?.makeBuffer(bytes: &result, length: inputCount)
      else {
-         throw ActivationKernelError.apiReturnedNil("makeBuffer")
+     throw ActivationKernelError.apiReturnedNil("makeBuffer")
      }
      */
     inputBuffer?.contents().copyMemory(from: input, byteCount: inputCount)
@@ -449,9 +448,9 @@ fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Floa
     commandEncoder.setBuffer(resultBuffer, offset: 0, index: 1)
     /*
      guard
-         let function = library?.makeFunction(name: derivative ? "\(function)_derivative" : "\(function)")
+     let function = library?.makeFunction(name: derivative ? "\(function)_derivative" : "\(function)")
      else {
-         throw ActivationKernelError.apiReturnedNil("makeFunction")
+     throw ActivationKernelError.apiReturnedNil("makeFunction")
      }
      */
     do {
