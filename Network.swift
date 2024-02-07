@@ -37,6 +37,12 @@ struct Network {
         var E = T - query(for: I, &O)
         // back propagate error layer by layer in reverse order
         for layer in (0..<layers.count).reversed() {
+            /*
+             * layer holds indices from last to first layer. these correspond
+             * to indices of the output of the previous layer in O,
+             * which contains an additional pseudolayer for the network input
+             * at index 0, thus adding one to the regular layer indices.
+             */
             E = layers[layer].train(for: O[layer], O[layer + 1], E, alpha: alpha)
         }
     }
@@ -44,20 +50,33 @@ struct Network {
     // train network with multiple input vectors (batch)
     mutating func train(for I: [Matrix<Float>], with T: [Matrix<Float>]) async -> Void {
         assert(I.count == T.count && I.count > 1, "different batch sizes for I and T")
-        var O: [Matrix<Float>] = [] // mean layer outputs for batch
-        _ = query(for: I[0], &O) // 1st sets O
-        var E = T[0] - O.last! // mean network error for batch
-        var G = layers.last!.gradient(for: O.lastButOne!, O.last!, E) // mean network gradient for batch
+        // mean layer outputs for batch
+        var O: [Matrix<Float>] = []
+        // init with 1st prediction for stepwise averaging to work
+        _ = query(for: I[0], &O)
+        // mean network error for batch
+        var E = T[0] - O.last!
+        // mean network gradient for batch
+        var G = layers.last!.gradient(for: O.lastButOne!, O.last!, E)
+        // process batch inputs except first
         for index in 1..<I.count {
+            // layer outputs for this input
             var o: [Matrix<Float>] = []
-            _ = query(for: I[index], &o) // outputs for this input
-            o.enumerated().forEach { i, v in O[i] = (O[i] + v) / 2 } // update mean in O
+            _ = query(for: I[index], &o)
+            // stepwise averaging layer outputs in O
+            o.enumerated().forEach { i, v in O[i] = (O[i] + v) / 2 }
+            // network error for this input
             let e = T[index] - o.last!
-            E = (E + e) / 2 // update mean in E
-            let g = layers.last!.gradient(for: o[o.count - 2], o.last!, e)
-            G = (G + g) / 2 // update mean in G
+            // update mean error in E
+            E = (E + e) / 2
+            // network gradient for this input
+            let g = layers.last!.gradient(for: o.lastButOne!, o.last!, e)
+            // update mean gradient in G
+            G = (G + g) / 2
         }
+        // mean error of last but one layer based on mean network error and gradient for batch
         var e = layers[layers.count - 1].train(with: G, E, alpha: alpha)
+        // back propagate mean error layer by layer in reverse order
         for layer in (0..<layers.count - 1).reversed() {
             e = layers[layer].train(for: O[layer], O[layer + 1], e, alpha: alpha)
         }
