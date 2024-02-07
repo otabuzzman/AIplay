@@ -46,13 +46,13 @@ struct Network {
         assert(I.count == T.count && I.count > 1, "different batch sizes for I and T")
         var O: [Matrix<Float>] = [] // mean layer outputs for batch
         _ = query(for: I[0], &O) // 1st sets O
-        var E = T[0] - O[0] // mean network error for batch
+        var E = T[0] - O.last! // mean network error for batch
         var G = layers.last!.gradient(for: O[O.count - 2], O[O.count - 1], E) // mean network gradient for batch
         for index in 1..<I.count {
             var o: [Matrix<Float>] = []
-            let i = query(for: I[index], &o) // outputs for this input
+            _ = query(for: I[index], &o) // outputs for this input
             o.enumerated().forEach { i, v in O[i] = (O[i] + v) / 2 } // update mean in O
-            let e = T[index] - i
+            let e = T[index] - o.last!
             E = (E + e) / 2 // update mean in E
             let g = layers.last!.gradient(for: o[o.count - 2], o[o.count - 1], e)
             G = (G + g) / 2 // update mean in G
