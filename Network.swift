@@ -6,6 +6,9 @@ struct Network {
     private var layers: [Layer]
     private var alpha: Float
     
+    private(set) var loss: Float = 0
+    private(set) var cost: Float = 0
+    
     init(_ layers: [Layer], alpha: Float) {
         self.layers = layers
         self.alpha = alpha
@@ -35,6 +38,8 @@ struct Network {
         var O: [Matrix<Float>] = []
         // network error at output layer O as difference of T - O
         var E = T - query(for: I, &O)
+        // loss (MSE L2)
+        loss = E.entries.map { v in pow(v, 2) }.reduce(0, +)
         // back propagate error and update weights layer by layer in reverse order
         for layer in (0..<layers.count).reversed() {
             /*
@@ -56,6 +61,8 @@ struct Network {
         _ = query(for: I[0], &O)
         // mean network error for batch
         var E = T[0] - O.last!
+        // cost (mean loss (MSE L2) of batch)
+        var C = E.map { v in pow(v, 2) }
         // mean network gradient for batch
         var G = layers.last!.gradient(for: O.lastButOne!, O.last!, E)
         // process batch inputs except first
@@ -67,6 +74,8 @@ struct Network {
             o.enumerated().forEach { i, v in O[i] = (O[i] + v) / 2 }
             // network error for this input
             let e = T[index] - o.last!
+            // update cost
+            C = (C + e.map { v in pow(v, 2) }) / 2
             // update mean error in E
             E = (E + e) / 2
             // network gradient for this input
@@ -74,6 +83,7 @@ struct Network {
             // update mean gradient in G
             G = (G + g) / 2
         }
+        cost = C.entries.reduce(0, +)
         // mean error of last but one layer based on mean network error and gradient for batch
         var e = layers[layers.count - 1].train(with: G, E, alpha: alpha)
         // back propagate mean error and update weights layer by layer in reverse order
@@ -429,6 +439,7 @@ fileprivate let library = try? device?.makeLibrary(source: activationLibrary, op
 fileprivate let sigmoid = library?.makeFunction(name: "sigmoid")
 fileprivate let sigmoid_derivative = library?.makeFunction(name: "sigmoid_derivative")
 
+// length must equal punits times element stride of largest layer in this regard
 fileprivate let inputBuffer = device?.makeBuffer(length: 400)
 fileprivate let resultBuffer = device?.makeBuffer(length: 400)
 
