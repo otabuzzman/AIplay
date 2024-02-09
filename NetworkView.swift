@@ -23,6 +23,8 @@ struct NetworkView: View {
     
     @State private var showResultDetails = false
     
+    @State private var validationAccuracy: Float?
+    
     @State private var document: NetworkExchangeDocument?
     @State private var error: NetworkExchangeError?
     
@@ -151,14 +153,8 @@ struct NetworkView: View {
                 }
                 Section {
                     HStack {
-                        Text("Epochs trained (wanted)")
+                        Text("Statistics...")
                         Spacer()
-                        Text("\(viewModel.epochsTrained) (\(viewModel.epochsWanted))")
-                    }
-                    HStack {
-                        Text("Duration of last epoch")
-                        Spacer()
-                        Text(DateComponentsFormatter().string(from: viewModel.duration)!)
                     }
                 } header: {
                     HStack {
@@ -208,14 +204,14 @@ struct NetworkView: View {
                             Button {
                                 longRunTask = Task { @MainActor in
                                     longRunBusy = true
-                                    await viewModel.queryAll()
+                                    validationAccuracy = await viewModel.queryAll()
                                     longRunBusy = false
                                 }
                             } label: {
-                                Label("NN Accuracy", systemImage: "sparkle.magnifyingglass")
+                                Label("Validation Accuracy", systemImage: "sparkle.magnifyingglass")
                             }
                             Spacer()
-                            Text(String(format: "%.4f", viewModel.accuracy))
+                            Text("\(validationAccuracy == nil ? "-" : String(format: "%.4f", validationAccuracy!))")
                         }
                         HStack {
                             Button {
@@ -320,12 +316,9 @@ extension NetworkView {
         @Published private(set) var batchesTrained = 0
         
         @Published private(set) var epochsTrained = 0
-        @Published private(set) var accuracy: Float = 0
         
         @Published private(set) var progress: Float = 0 // 0...1
         private let progressIncrement: Float = 0.01 // 0>..1
-        
-        @Published private(set) var duration: TimeInterval = 0
         
         init(config: NetworkConfig = .default) {
             if let model = Bundle.main.url(forResource: "default-model", withExtension: "nndx") {
@@ -338,11 +331,11 @@ extension NetworkView {
             miniBatchSize = config.miniBatchSize
         }
         
-        func queryAll() async -> Void {
+        func queryAll() async -> Float {
             let sampleCount = dataset.count(in: .test)
             samplesQueried = [Int](repeating: .zero, count: sampleCount)
             await query(startWithSample: 0, count: sampleCount)
-            accuracy = samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
+            return samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
         }
         
         private func query(startWithSample index: Int, count: Int) async -> Void {
@@ -385,8 +378,6 @@ extension NetworkView {
         }
         
         func train(startWithSample index: Int, count: Int) async -> Void {
-            duration = 0
-            let t0 = Date.timeIntervalSinceReferenceDate
             for i in 0..<count {
                 let (input, target) = dataset.fetch(index + i, from: .train)
                 train(sample: input, target: target)
@@ -398,8 +389,6 @@ extension NetworkView {
                     try Task.checkCancellation()
                 } catch { return }
             }
-            let t1 = Date.timeIntervalSinceReferenceDate
-            duration = t1 - t0
             samplesTrained += count
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
@@ -414,12 +403,10 @@ extension NetworkView {
             var T = Matrix<Float>(rows: 10, columns: 1)
                 .map { _ in 0.01 }
             T[Int(target), 0] = 0.99
-            network.train(for: I, with: T)
+            _ = network.train(for: I, with: T)
         }
         
         func train(startWithBatch index: Int, count: Int) async -> Void {
-            duration = 0
-            let t0 = Date.timeIntervalSinceReferenceDate
             for i in 0..<count {
                 let a = (index + i) * miniBatchSize
                 let o = a + miniBatchSize
@@ -433,8 +420,6 @@ extension NetworkView {
                     try Task.checkCancellation()
                 } catch { return }
             }
-            let t1 = Date.timeIntervalSinceReferenceDate
-            duration = t1 - t0
             batchesTrained += count
             samplesTrained += count * miniBatchSize
             Task { @MainActor in
@@ -455,7 +440,7 @@ extension NetworkView {
                 target[Int($0), 0] = 0.99
                 return target
             }
-            await network.train(for: I, with: T)
+            _ = await network.train(for: I, with: T)
         }
         
         func reset() -> Void {
@@ -463,11 +448,19 @@ extension NetworkView {
             samplesTrained = 0
             batchesTrained = 0
             epochsTrained = 0
-            accuracy = 0
             progress = 0
-            duration = 0
         }
     }
+}
+
+struct Measures {
+    var trainingStartTime: TimeInterval = 0
+    var trainingEndTime: TimeInterval = 0
+    var batteryDrain: Float = 0
+    var trainingAccuracy: Float = 0
+    var validationAccuracy: Float = 0
+    var trainingLoss: [Float] = []
+    var validationLoss: [Float] = []
 }
 
 enum NetworkExchangeDocumentError: Error {

@@ -6,9 +6,6 @@ struct Network {
     private var layers: [Layer]
     private var alpha: Float
     
-    private(set) var loss: Float = 0
-    private(set) var cost: Float = 0
-    
     init(_ layers: [Layer], alpha: Float) {
         self.layers = layers
         self.alpha = alpha
@@ -32,14 +29,34 @@ struct Network {
         return O.last! // network's output layer O
     }
     
+    // validation loss for single input/ target vectors
+    func query(for I: Matrix<Float>, with T: Matrix<Float>) -> Float {
+        let E = T - query(for: I)
+        let loss = E.entries.map { v in pow(v, 2) }.reduce(0, +)
+        return loss
+    }
+    
+    // validation cost for batch input/ target vectors
+    func query(for I: [Matrix<Float>], with T: [Matrix<Float>]) -> Float {
+        var E = T[0] - query(for: I[0])
+        var C = E.map { v in pow(v, 2) }
+        for index in 1..<I.count {
+            let e = T[index] - query(for: I[index])
+            C = (C + e.map { v in pow(v, 2) }) / 2
+            E = (E + e) / 2
+        }
+        let cost = C.entries.reduce(0, +)
+        return cost
+    }
+    
     // train network with single input vector
-    mutating func train(for I: Matrix<Float>, with T: Matrix<Float>) -> Void {
+    mutating func train(for I: Matrix<Float>, with T: Matrix<Float>) -> Float {
         // each layer's output
         var O: [Matrix<Float>] = []
         // network error at output layer O as difference of T - O
         var E = T - query(for: I, &O)
-        // loss (MSE L2)
-        loss = E.entries.map { v in pow(v, 2) }.reduce(0, +)
+        // training loss (MSE L2)
+        let loss = E.entries.map { v in pow(v, 2) }.reduce(0, +)
         // back propagate error and update weights layer by layer in reverse order
         for layer in (0..<layers.count).reversed() {
             /*
@@ -50,10 +67,11 @@ struct Network {
              */
             E = layers[layer].train(for: O[layer], O[layer + 1], E, alpha: alpha)
         }
+        return loss
     }
     
     // train network with multiple input vectors (batch)
-    mutating func train(for I: [Matrix<Float>], with T: [Matrix<Float>]) async -> Void {
+    mutating func train(for I: [Matrix<Float>], with T: [Matrix<Float>]) async -> Float {
         assert(I.count == T.count && I.count > 1, "different batch sizes for I and T")
         // mean layer outputs for batch
         var O: [Matrix<Float>] = []
@@ -61,7 +79,7 @@ struct Network {
         _ = query(for: I[0], &O)
         // mean network error for batch
         var E = T[0] - O.last!
-        // cost (mean loss (MSE L2) of batch)
+        // training cost (mean loss (MSE L2) of batch)
         var C = E.map { v in pow(v, 2) }
         // mean network gradient for batch
         var G = layers.last!.gradient(for: O.lastButOne!, O.last!, E)
@@ -83,13 +101,14 @@ struct Network {
             // update mean gradient in G
             G = (G + g) / 2
         }
-        cost = C.entries.reduce(0, +)
         // mean error of last but one layer based on mean network error and gradient for batch
         var e = layers[layers.count - 1].train(with: G, E, alpha: alpha)
         // back propagate mean error and update weights layer by layer in reverse order
         for layer in (0..<layers.count - 1).reversed() {
             e = layers[layer].train(for: O[layer], O[layer + 1], e, alpha: alpha)
         }
+        let cost = C.entries.reduce(0, +)
+        return cost
     }
 }
 
