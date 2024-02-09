@@ -315,7 +315,7 @@ extension NetworkView {
         var network: Network
         private(set) var dataset: MNISTViewModel
         private(set) var epochsWanted: Int
-        private(set) var miniBatchSize: Int
+        var miniBatchSize: Int
         
         @Published private(set) var progress: Float = 0 // 0...1
         private let progressIncrement: Float = 0.01 // 0>..1
@@ -331,11 +331,11 @@ extension NetworkView {
             miniBatchSize = config.miniBatchSize
         }
         
-        func queryAll() async -> Float {
-            let sampleCount = dataset.count(in: .test)
-            let samplesQueried = [Int](repeating: .zero, count: sampleCount)
+        func queryAll(use subset: MNISTSubset.Purpose = .test) async -> Float {
+            let sampleCount = dataset.count(in: subset)
+            var samplesQueried = [Int](repeating: .zero, count: sampleCount)
             for index in 0..<sampleCount {
-                let (input, target) = dataset.fetch(index, from: .test)
+                let (input, target) = dataset.fetch(index, from: subset)
                 let result = query(sample: input).maxElementIndex()! // probably save to unwrap
                 samplesQueried[index] = result == target ? 1 : 0
                 let progress = Float(index + 1) / Float(sampleCount)
@@ -361,19 +361,32 @@ extension NetworkView {
         }
         
         func trainAll() async -> Void {
+            let measures = Measures()
+            measures.trainingStartTime = Date.timeIntervalSinceReferenceDate
+            let batteryLevel = await UIDevice.current.batteryLevel
             dataset.shuffle()
             let count = dataset.count(in: .train)
             if miniBatchSize == 1 {
-                await train(startWithSample: 0, count: count)
+                await train(startWithSample: 0, count: count, measures)
             } else {
-                await train(startWithBatch: 0, count: count / miniBatchSize)
+                await train(startWithBatch: 0, count: count / miniBatchSize, measures)
             }
+            measures.trainingAccuracy = await queryAll(use: .train)
+            measures.validationAccuracy = await queryAll(use: .test)
+            measures.batteryDrain = await batteryLevel - UIDevice.current.batteryLevel
+            measures.trainingDuration = measures.trainingStartTime - Date.timeIntervalSinceReferenceDate
         }
         
-        func train(startWithSample index: Int, count: Int) async -> Void {
+        func train(startWithSample index: Int, count: Int, _ measures: Measures? = nil) async -> Void {
+            if let measures = measures, count > miniBatchSize {
+                measures.trainingLoss = .init(repeating: 0, count: count / miniBatchSize)
+            }
             for i in 0..<count {
                 let (input, target) = dataset.fetch(index + i, from: .train)
-                train(sample: input, target: target)
+                let trainingLoss = train(sample: input, target: target)
+                if i % miniBatchSize == 0 {
+                    measures?.trainingLoss?[i] = trainingLoss
+                }
                 let progress = Float(i + 1) / Float(count)
                 if progress > self.progress + progressIncrement {
                     self.progress = progress
@@ -388,22 +401,26 @@ extension NetworkView {
             }
         }
         
-        func train(sample: MNISTImage, target: MNISTLabel) -> Void {
+        func train(sample: MNISTImage, target: MNISTLabel) -> Float {
             let I = Matrix<Float>(
                 rows: sample.count, columns: 1,
                 entries: sample.map { (Float($0) / 255.0 * 0.99) + 0.01 })
             var T = Matrix<Float>(rows: 10, columns: 1)
                 .map { _ in 0.01 }
             T[Int(target), 0] = 0.99
-            _ = network.train(for: I, with: T)
+            return network.train(for: I, with: T)
         }
         
-        func train(startWithBatch index: Int, count: Int) async -> Void {
+        func train(startWithBatch index: Int, count: Int, _ measures: Measures? = nil) async -> Void {
+            if let measures = measures {
+                measures.trainingLoss = .init(repeating: 0, count: count)
+            }
             for i in 0..<count {
                 let a = (index + i) * miniBatchSize
                 let o = a + miniBatchSize
                 let (input, target) = dataset.fetch(a..<o, from: .train)
-                await train(samples: input, targets: target)
+                let trainingCost = await train(samples: input, targets: target)
+                measures?.trainingLoss?[i] = trainingCost
                 let progress = Float(i + 1) / Float(count)
                 if progress > self.progress + progressIncrement {
                     self.progress = progress
@@ -418,7 +435,7 @@ extension NetworkView {
             }
         }
         
-        func train(samples: [MNISTImage], targets: [MNISTLabel]) async -> Void {
+        func train(samples: [MNISTImage], targets: [MNISTLabel]) async -> Float {
             let I = samples.map {
                 Matrix<Float>(
                     rows: $0.count, columns: 1,
@@ -430,7 +447,7 @@ extension NetworkView {
                 target[Int($0), 0] = 0.99
                 return target
             }
-            _ = await network.train(for: I, with: T)
+            return await network.train(for: I, with: T)
         }
         
         func reset() -> Void {
@@ -440,14 +457,14 @@ extension NetworkView {
     }
 }
 
-struct Measures {
+class Measures {
     var trainingStartTime: TimeInterval = 0
-    var trainingEndTime: TimeInterval = 0
+    var trainingDuration: TimeInterval = 0
     var batteryDrain: Float = 0
     var trainingAccuracy: Float = 0
     var validationAccuracy: Float = 0
-    var trainingLoss: [Float] = []
-    var validationLoss: [Float] = []
+    var trainingLoss: [Float]?
+    var validationLoss: [Float]?
 }
 
 enum NetworkExchangeDocumentError: Error {
