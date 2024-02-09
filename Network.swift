@@ -35,7 +35,7 @@ struct Network {
         return loss
     }
     
-    func cost(for I: [Matrix<Float>], with T: [Matrix<Float>]) -> Float {
+    func cost(for I: [Matrix<Float>], with T: [Matrix<Float>]) async -> Float {
         var E = T[0] - query(for: I[0])
         var C = E.map { v in pow(v, 2) }
         for index in 1..<I.count {

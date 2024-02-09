@@ -360,6 +360,12 @@ extension NetworkView {
             return network.query(for: I).entries
         }
         
+        func cost(samples: [MNISTImage], targets: [MNISTLabel]) async -> Float {
+            let I = samples.toMatrix()
+            let T = targets.toMatrix()
+            return await network.cost(for: I, with: T)
+        }
+        
         func trainAll() async -> Void {
             let measures = Measures()
             measures.trainingStartTime = Date.timeIntervalSinceReferenceDate
@@ -375,6 +381,10 @@ extension NetworkView {
             measures.validationAccuracy = await queryAll(use: .test)
             measures.batteryDrain = await batteryLevel - UIDevice.current.batteryLevel
             measures.trainingDuration = measures.trainingStartTime - Date.timeIntervalSinceReferenceDate
+            
+            if _isDebugAssertConfiguration() {
+                let _ = print(measures)
+            }
         }
         
         func train(startWithSample index: Int, count: Int, _ measures: Measures? = nil) async -> Void {
@@ -421,6 +431,8 @@ extension NetworkView {
                 let (input, target) = dataset.fetch(a..<o, from: .train)
                 let trainingCost = await train(samples: input, targets: target)
                 measures?.trainingLoss?[i] = trainingCost
+                let validationCost = await cost(samples: input, targets: target)
+                measures?.validationLoss?[i] = validationCost
                 let progress = Float(i + 1) / Float(count)
                 if progress > self.progress + progressIncrement {
                     self.progress = progress
@@ -436,23 +448,35 @@ extension NetworkView {
         }
         
         func train(samples: [MNISTImage], targets: [MNISTLabel]) async -> Float {
-            let I = samples.map {
-                Matrix<Float>(
-                    rows: $0.count, columns: 1,
-                    entries: $0.map { (Float($0) / 255.0 * 0.99) + 0.01 })
-            }
-            let T = targets.map {
-                var target = Matrix<Float>(rows: 10, columns: 1)
-                    .map { _ in 0.01 }
-                target[Int($0), 0] = 0.99
-                return target
-            }
+            let I = samples.toMatrix()
+            let T = targets.toMatrix()
             return await network.train(for: I, with: T)
         }
         
         func reset() -> Void {
             network = GenericFactory.create(NetworkFactory(), .default)!
             progress = 0
+        }
+    }
+}
+
+extension Array where Element == MNISTImage {
+    func toMatrix() -> [Matrix<Float>] {
+        self.map {
+            Matrix<Float>(
+                rows: $0.count, columns: 1,
+                entries: $0.map { (Float($0) / 255.0 * 0.99) + 0.01 })
+        }
+    }
+}
+
+extension Array where Element == MNISTLabel {
+    func toMatrix() -> [Matrix<Float>] {
+        self.map {
+            var target = Matrix<Float>(rows: 10, columns: 1)
+                .map { _ in 0.01 }
+            target[Int($0), 0] = 0.99
+            return target
         }
     }
 }
@@ -465,6 +489,12 @@ class Measures {
     var validationAccuracy: Float = 0
     var trainingLoss: [Float]?
     var validationLoss: [Float]?
+}
+
+extension Measures: CustomStringConvertible {
+    var description: String {
+        "Measures(trainingStartTime: \(trainingStartTime), trainingDuration: \(trainingDuration), batteryDrain: \(batteryDrain), trainingAccuracy: \(trainingAccuracy), validationAccuracy: \(validationAccuracy), trainingLoss: \(trainingLoss == nil ? "nil" : "[\(stringOfElements(in: trainingLoss!, count: 16, format: { String(describing: $0) }))]"), validationLoss: \(validationLoss == nil ? "nil" : "[\(stringOfElements(in: validationLoss!, count: 16, format: { String(describing: $0) }))]")"
+    }
 }
 
 enum NetworkExchangeDocumentError: Error {

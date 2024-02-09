@@ -209,7 +209,7 @@ extension Matrix: Equatable {
 
 extension Matrix: CustomStringConvertible {
     var description: String {
-        "Matrix(rows: \(rows), columns: \(columns), entries: [\(stringOfElements(in: entries, count: 10, format: { String(describing: $0) }))]"
+        "Matrix(rows: \(rows), columns: \(columns), entries: [\(stringOfElements(in: entries, count: 10, format: { String(describing: $0) }))])"
     }
 }
 
