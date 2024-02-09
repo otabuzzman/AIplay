@@ -314,10 +314,8 @@ extension NetworkView {
     class NetworkViewModel: ObservableObject {
         var network: Network
         private(set) var dataset: MNISTViewModel
-        var epochsWanted: Int
-        var miniBatchSize: Int
-        
-        private var samplesQueried = [Int]()
+        private(set) var epochsWanted: Int
+        private(set) var miniBatchSize: Int
         
         @Published private(set) var progress: Float = 0 // 0...1
         private let progressIncrement: Float = 0.01 // 0>..1
@@ -335,30 +333,24 @@ extension NetworkView {
         
         func queryAll() async -> Float {
             let sampleCount = dataset.count(in: .test)
-            samplesQueried = [Int](repeating: .zero, count: sampleCount)
-            await query(startWithSample: 0, count: sampleCount)
-            return samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
-        }
-        
-        private func query(startWithSample index: Int, count: Int) async -> Void {
-            for i in 0..<count {
-                let (input, target) = dataset.fetch(index + i, from: .test)
+            let samplesQueried = [Int](repeating: .zero, count: sampleCount)
+            for index in 0..<sampleCount {
+                let (input, target) = dataset.fetch(index, from: .test)
                 let result = query(sample: input).maxElementIndex()! // probably save to unwrap
-                if samplesQueried.count > index {
-                    samplesQueried[i] = result == target ? 1 : 0
-                }
-                let progress = Float(i + 1) / Float(count)
+                samplesQueried[index] = result == target ? 1 : 0
+                let progress = Float(index + 1) / Float(sampleCount)
                 if progress > self.progress + progressIncrement {
                     self.progress = progress
                 }
                 do {
                     try Task.checkCancellation()
-                } catch { return }
+                } catch { return 0 }
             }
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
                 progress = 0
             }
+            return samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
         }
         
         func query(sample: MNISTImage) -> [Float] {
