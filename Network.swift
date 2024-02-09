@@ -29,15 +29,13 @@ struct Network {
         return O.last! // network's output layer O
     }
     
-    // validation loss for single input/ target vectors
-    func query(for I: Matrix<Float>, with T: Matrix<Float>) -> Float {
+    func loss(for I: Matrix<Float>, with T: Matrix<Float>) -> Float {
         let E = T - query(for: I)
         let loss = E.entries.map { v in pow(v, 2) }.reduce(0, +)
         return loss
     }
     
-    // validation cost for batch input/ target vectors
-    func query(for I: [Matrix<Float>], with T: [Matrix<Float>]) -> Float {
+    func cost(for I: [Matrix<Float>], with T: [Matrix<Float>]) -> Float {
         var E = T[0] - query(for: I[0])
         var C = E.map { v in pow(v, 2) }
         for index in 1..<I.count {

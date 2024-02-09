@@ -23,6 +23,8 @@ struct NetworkView: View {
     
     @State private var showResultDetails = false
     
+    @State private(set) var samplesTrained = 0
+    
     @State private var validationAccuracy: Float?
     
     @State private var document: NetworkExchangeDocument?
@@ -175,12 +177,14 @@ struct NetworkView: View {
                                 longRunTask = Task { @MainActor in
                                     longRunBusy = true
                                     if viewModel.miniBatchSize == 1 {
-                                        // SGD with arbitrary number of samples
-                                        await viewModel.train(startWithSample: viewModel.samplesTrained, count: 100)
+                                        // SGD with mini-batch number of samples
+                                        await viewModel.train(startWithSample: samplesTrained, count: viewModel.miniBatchSize)
                                     } else {
                                         // mini-batch GD with size as configured
-                                        await viewModel.train(startWithBatch: viewModel.batchesTrained, count: 1)
+                                        let batchesTrained = samplesTrained / viewModel.miniBatchSize
+                                        await viewModel.train(startWithBatch: batchesTrained, count: 1)
                                     }
+                                    samplesTrained += viewModel.miniBatchSize
                                     longRunBusy = false
                                 }
                             } label: {
@@ -247,6 +251,8 @@ struct NetworkView: View {
                                 }
                                 resultDetails = nil
                                 resultReading = nil
+                                samplesTrained = 0
+                                validationAccuracy = nil
                             }
                         }
                         Spacer()
@@ -311,11 +317,7 @@ extension NetworkView {
         var epochsWanted: Int
         var miniBatchSize: Int
         
-        @Published private(set) var samplesTrained = 0  
         private var samplesQueried = [Int]()
-        @Published private(set) var batchesTrained = 0
-        
-        @Published private(set) var epochsTrained = 0
         
         @Published private(set) var progress: Float = 0 // 0...1
         private let progressIncrement: Float = 0.01 // 0>..1
@@ -374,7 +376,6 @@ extension NetworkView {
             } else {
                 await train(startWithBatch: 0, count: count / miniBatchSize)
             }
-            epochsTrained += 1
         }
         
         func train(startWithSample index: Int, count: Int) async -> Void {
@@ -389,7 +390,6 @@ extension NetworkView {
                     try Task.checkCancellation()
                 } catch { return }
             }
-            samplesTrained += count
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
                 progress = 0
@@ -420,8 +420,6 @@ extension NetworkView {
                     try Task.checkCancellation()
                 } catch { return }
             }
-            batchesTrained += count
-            samplesTrained += count * miniBatchSize
             Task { @MainActor in
                 try await Task.sleep(nanoseconds: 1_000_000_000)
                 progress = 0
@@ -445,9 +443,6 @@ extension NetworkView {
         
         func reset() -> Void {
             network = GenericFactory.create(NetworkFactory(), .default)!
-            samplesTrained = 0
-            batchesTrained = 0
-            epochsTrained = 0
             progress = 0
         }
     }
