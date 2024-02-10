@@ -5,7 +5,7 @@ import UniformTypeIdentifiers
 
 struct NetworkView: View {
     @ObservedObject private var viewModel = NetworkViewModel()
-    @State private var actConfig = getNetworkConfig() ?? .default
+    @State private var config = getNetworkConfig() ?? .default
     
     @State private var longRunTask: Task<Void, Never>?
     @State private var longRunBusy = false
@@ -290,14 +290,14 @@ struct NetworkView: View {
             }
         }
         .sheet(isPresented: $showSetupView) {
-            NetworkSetupView(isPresented: $showSetupView, actConfig) { newConfig in
+            NetworkSetupView(isPresented: $showSetupView, config) { newConfig in
                 guard
                     let network = GenericFactory.create(NetworkFactory(), newConfig)
                 else { return }
                 viewModel.network = network
                 viewModel.miniBatchSize = newConfig.miniBatchSize
                 
-                actConfig = newConfig
+                config = newConfig
                 setNetworkConfig(newConfig)
                 
                 showSetupView.toggle()
@@ -363,7 +363,7 @@ extension NetworkView {
             dataset.shuffle()
             let count = dataset.count(in: .train)
             if miniBatchSize == 1 {
-                await train(startWithSample: 0, count: count, measures)
+                await train(startWithSample: 0, count: count)
             } else {
                 await train(startWithBatch: 0, count: count / miniBatchSize, measures)
             }
@@ -376,16 +376,10 @@ extension NetworkView {
             }
         }
         
-        func train(startWithSample index: Int, count: Int, _ measures: Measures? = nil) async -> Void {
-            if let measures = measures, count > miniBatchSize {
-                measures.trainingLoss = .init(repeating: 0, count: count / miniBatchSize)
-            }
+        func train(startWithSample index: Int, count: Int) async -> Void {
             for i in 0..<count {
                 let (input, target) = dataset.fetch(index + i, from: .train)
-                let trainingLoss = network.train(for: input.toInput(), with: target.toTarget())
-                if i % miniBatchSize == 0 {
-                    measures?.trainingLoss?[i] = trainingLoss
-                }
+                _ = network.train(for: input.toInput(), with: target.toTarget())
                 let progress = Float(i + 1) / Float(count)
                 if progress > self.progress + progressIncrement {
                     self.progress = progress
