@@ -192,23 +192,26 @@ struct AIplay: App {
     }
 }
 
-func stringOfElements<T>(in this: [T], count: Int? = nil, format: @escaping (T) -> String = { element in String(describing: element) }) -> String {
+func stringOfElements<T>(in this: [T], count: Int = 0, format: @escaping (T) -> String = { element in String(describing: element) }) -> String {
     var stringOfElements = ""
-    let substring: (Int, Int) -> String = { startIndex, count in
+    let substring: (Int, Int) -> String = { start, count in
         var substring: String = ""
-        let endIndex = startIndex + count - 1
-        for index in startIndex...endIndex {
+        let end = start + count - 1
+        for index in start...end {
             substring += format(this[index])
-            if index == endIndex { break }
+            if index == end { break }
             substring += ", "
         }
         return substring
     }
-    let maxCount = count ?? this.count
-    if this.count > maxCount {
-        stringOfElements += substring(0, maxCount - 2) + ", ... " + substring(maxCount  - 2, 2)
+    if this.count == 0 {
+        return stringOfElements
+    }
+    if count == 0 {
+        stringOfElements = substring(0, this.count)
     } else {
-        stringOfElements += substring(0, maxCount)
+        let count = min(this.count, count)
+        stringOfElements = substring(0, count - 2) + ", ... " + substring(count - 2, 2)
     }
     return stringOfElements
 }

@@ -354,22 +354,12 @@ extension NetworkView {
         }
         
         func query(sample: MNISTImage) -> [Float] {
-            let I = Matrix<Float>(
-                rows: sample.count, columns: 1,
-                entries: sample.map { (Float($0) / 255.0 * 0.99) + 0.01 }) // MYONN, p. 151 ff.
-            return network.query(for: I).entries
-        }
-        
-        func cost(samples: [MNISTImage], targets: [MNISTLabel]) async -> Float {
-            let I = samples.toMatrix()
-            let T = targets.toMatrix()
-            return await network.cost(for: I, with: T)
+            network.query(for: sample.toInput()).entries
         }
         
         func trainAll() async -> Void {
             let measures = Measures()
             measures.trainingStartTime = Date.timeIntervalSinceReferenceDate
-            let batteryLevel = await UIDevice.current.batteryLevel
             dataset.shuffle()
             let count = dataset.count(in: .train)
             if miniBatchSize == 1 {
@@ -379,8 +369,7 @@ extension NetworkView {
             }
             measures.trainingAccuracy = await queryAll(use: .train)
             measures.validationAccuracy = await queryAll(use: .test)
-            measures.batteryDrain = await batteryLevel - UIDevice.current.batteryLevel
-            measures.trainingDuration = measures.trainingStartTime - Date.timeIntervalSinceReferenceDate
+            measures.trainingDuration = Date.timeIntervalSinceReferenceDate - measures.trainingStartTime
             
             if _isDebugAssertConfiguration() {
                 let _ = print(measures)
@@ -393,7 +382,7 @@ extension NetworkView {
             }
             for i in 0..<count {
                 let (input, target) = dataset.fetch(index + i, from: .train)
-                let trainingLoss = train(sample: input, target: target)
+                let trainingLoss = network.train(for: input.toInput(), with: target.toTarget())
                 if i % miniBatchSize == 0 {
                     measures?.trainingLoss?[i] = trainingLoss
                 }
@@ -411,16 +400,6 @@ extension NetworkView {
             }
         }
         
-        func train(sample: MNISTImage, target: MNISTLabel) -> Float {
-            let I = Matrix<Float>(
-                rows: sample.count, columns: 1,
-                entries: sample.map { (Float($0) / 255.0 * 0.99) + 0.01 })
-            var T = Matrix<Float>(rows: 10, columns: 1)
-                .map { _ in 0.01 }
-            T[Int(target), 0] = 0.99
-            return network.train(for: I, with: T)
-        }
-        
         func train(startWithBatch index: Int, count: Int, _ measures: Measures? = nil) async -> Void {
             if let measures = measures {
                 measures.trainingLoss = .init(repeating: 0, count: count)
@@ -429,10 +408,8 @@ extension NetworkView {
                 let a = (index + i) * miniBatchSize
                 let o = a + miniBatchSize
                 let (input, target) = dataset.fetch(a..<o, from: .train)
-                let trainingCost = await train(samples: input, targets: target)
+                let trainingCost = await network.train(for: input.toMatrix(), with: target.toMatrix())
                 measures?.trainingLoss?[i] = trainingCost
-                let validationCost = await cost(samples: input, targets: target)
-                measures?.validationLoss?[i] = validationCost
                 let progress = Float(i + 1) / Float(count)
                 if progress > self.progress + progressIncrement {
                     self.progress = progress
@@ -447,12 +424,6 @@ extension NetworkView {
             }
         }
         
-        func train(samples: [MNISTImage], targets: [MNISTLabel]) async -> Float {
-            let I = samples.toMatrix()
-            let T = targets.toMatrix()
-            return await network.train(for: I, with: T)
-        }
-        
         func reset() -> Void {
             network = GenericFactory.create(NetworkFactory(), .default)!
             progress = 0
@@ -460,40 +431,44 @@ extension NetworkView {
     }
 }
 
-extension Array where Element == MNISTImage {
-    func toMatrix() -> [Matrix<Float>] {
-        self.map {
-            Matrix<Float>(
-                rows: $0.count, columns: 1,
-                entries: $0.map { (Float($0) / 255.0 * 0.99) + 0.01 })
-        }
+extension Array {
+    func toMatrix() -> [Matrix<Float>] where Element == MNISTImage {
+        self.map { $0.toInput() }
+    }
+    
+    func toMatrix() -> [Matrix<Float>] where Element == MNISTLabel {
+        self.map { $0.toTarget() }
     }
 }
 
-extension Array where Element == MNISTLabel {
-    func toMatrix() -> [Matrix<Float>] {
-        self.map {
-            var target = Matrix<Float>(rows: 10, columns: 1)
-                .map { _ in 0.01 }
-            target[Int($0), 0] = 0.99
-            return target
-        }
+extension MNISTImage {
+    func toInput() -> Matrix<Float> {
+        Matrix<Float>(
+            rows: self.count, columns: 1,
+            entries: self.map { (Float($0) / 255.0 * 0.99) + 0.01 }) // MYONN, p. 151 ff.
+    }
+}
+
+extension MNISTLabel {
+    func toTarget() -> Matrix<Float> {
+        var target = Matrix<Float>(rows: 10, columns: 1)
+            .map { _ in 0.01 }
+        target[Int(self), 0] = 0.99
+        return target
     }
 }
 
 class Measures {
     var trainingStartTime: TimeInterval = 0
     var trainingDuration: TimeInterval = 0
-    var batteryDrain: Float = 0
     var trainingAccuracy: Float = 0
     var validationAccuracy: Float = 0
     var trainingLoss: [Float]?
-    var validationLoss: [Float]?
 }
 
 extension Measures: CustomStringConvertible {
     var description: String {
-        "Measures(trainingStartTime: \(trainingStartTime), trainingDuration: \(trainingDuration), batteryDrain: \(batteryDrain), trainingAccuracy: \(trainingAccuracy), validationAccuracy: \(validationAccuracy), trainingLoss: \(trainingLoss == nil ? "nil" : "[\(stringOfElements(in: trainingLoss!, count: 16, format: { String(describing: $0) }))]"), validationLoss: \(validationLoss == nil ? "nil" : "[\(stringOfElements(in: validationLoss!, count: 16, format: { String(describing: $0) }))]")"
+        "Measures(trainingStartTime: \(trainingStartTime), trainingDuration: \(trainingDuration), trainingAccuracy: \(trainingAccuracy), validationAccuracy: \(validationAccuracy), trainingLoss: \(trainingLoss == nil ? "nil" : "[\(stringOfElements(in: trainingLoss!, count: 16, format: { String(describing: $0) }))])")"
     }
 }
 
