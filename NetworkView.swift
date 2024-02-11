@@ -5,7 +5,6 @@ import UniformTypeIdentifiers
 
 struct NetworkView: View {
     @ObservedObject private var viewModel = NetworkViewModel()
-    @State private var config = getNetworkConfig() ?? .default
     
     @State private var longRunTask: Task<Void, Never>?
     @State private var longRunBusy = false
@@ -23,8 +22,8 @@ struct NetworkView: View {
     
     @State private var showResultDetails = false
     
-    @State private(set) var samplesTrained = 0
-    
+    @State private var batchesTrained = 0
+    @State private var measures = [Measures]()
     @State private var validationAccuracy: Float?
     
     @State private var document: NetworkExchangeDocument?
@@ -51,7 +50,7 @@ struct NetworkView: View {
                     var target: MNISTLabel
                     (queryInput, target) = viewModel.dataset.fetch(index, from: .test)
                     queryTarget = Int(target)
-                    let result = viewModel.query(sample: queryInput)
+                    let result = viewModel.query(image: queryInput)
                     resultDetails = result.enumerated().sorted(by: { $0.element > $1.element })
                     resultReading = resultDetails?[0].0
                 } label: {
@@ -102,7 +101,7 @@ struct NetworkView: View {
                             .aspectRatio(1, contentMode: .fit)
                             .onChange(of: canvasInput) { input in
                                 queryInput = canvasInput
-                                let result = viewModel.query(sample: queryInput)
+                                let result = viewModel.query(image: queryInput)
                                 resultDetails = result.enumerated().sorted(by: { $0.element > $1.element })
                                 resultReading = resultDetails?[0].0
                                 queryTarget = resultReading
@@ -176,16 +175,14 @@ struct NetworkView: View {
                             Button {
                                 longRunTask = Task { @MainActor in
                                     longRunBusy = true
-                                    if viewModel.miniBatchSize == 1 {
-                                        // SGD with mini-batch number of samples
-                                        await viewModel.train(startWithSample: samplesTrained, count: viewModel.miniBatchSize)
-                                    } else {
-                                        // mini-batch GD with size as configured
-                                        let batchesTrained = samplesTrained / viewModel.miniBatchSize
-                                        await viewModel.train(startWithBatch: batchesTrained, count: 1)
-                                    }
-                                    samplesTrained += viewModel.miniBatchSize
+                                    let range = batchesTrained..<batchesTrained + 1
+                                    _ = await viewModel.train(batch: range)
+                                    batchesTrained += 1
                                     longRunBusy = false
+                                    Task {
+                                        try await Task.sleep(nanoseconds: 1_000_000_000)
+                                        viewModel.progress = 0
+                                    }
                                 }
                             } label: {
                                 Label("Train next mini-batch", systemImage: "figure.strengthtraining.traditional")
@@ -196,8 +193,13 @@ struct NetworkView: View {
                             Button {
                                 longRunTask = Task { @MainActor in
                                     longRunBusy = true
-                                    await viewModel.trainAll()
+                                    let measures = await viewModel.train()
+                                    self.measures.append(measures)
                                     longRunBusy = false
+                                    Task {
+                                        try await Task.sleep(nanoseconds: 1_000_000_000)
+                                        viewModel.progress = 0
+                                    }
                                 }
                             } label: {
                                 Label("Train another epoch", systemImage: "figure.strengthtraining.traditional")
@@ -208,8 +210,12 @@ struct NetworkView: View {
                             Button {
                                 longRunTask = Task { @MainActor in
                                     longRunBusy = true
-                                    validationAccuracy = await viewModel.queryAll()
+                                    validationAccuracy = await viewModel.query()
                                     longRunBusy = false
+                                    Task {
+                                        try await Task.sleep(nanoseconds: 1_000_000_000)
+                                        viewModel.progress = 0
+                                    }
                                 }
                             } label: {
                                 Label("Validation Accuracy", systemImage: "sparkle.magnifyingglass")
@@ -243,7 +249,7 @@ struct NetworkView: View {
                             Task { @MainActor in
                                 longRunTask?.cancel()
                                 let _ = await longRunTask?.value
-                                viewModel.reset()
+                                
                                 queryInput = []
                                 queryTarget = nil
                                 withAnimation() {
@@ -251,8 +257,11 @@ struct NetworkView: View {
                                 }
                                 resultDetails = nil
                                 resultReading = nil
-                                samplesTrained = 0
+                                batchesTrained = 0
+                                measures = []
                                 validationAccuracy = nil
+                                
+                                viewModel.reset()
                             }
                         }
                         Spacer()
@@ -290,14 +299,9 @@ struct NetworkView: View {
             }
         }
         .sheet(isPresented: $showSetupView) {
-            NetworkSetupView(isPresented: $showSetupView, config) { newConfig in
-                guard
-                    let network = GenericFactory.create(NetworkFactory(), newConfig)
-                else { return }
-                viewModel.network = network
-                viewModel.miniBatchSize = newConfig.miniBatchSize
-                
-                config = newConfig
+            let networkConfig = getNetworkConfig() ?? .default
+            NetworkSetupView(isPresented: $showSetupView, networkConfig) { newConfig in
+                _ = viewModel.setup(config: newConfig)
                 setNetworkConfig(newConfig)
                 
                 showSetupView.toggle()
@@ -312,115 +316,121 @@ struct NetworkView: View {
 
 extension NetworkView {
     class NetworkViewModel: ObservableObject {
-        var network: Network
-        private(set) var dataset: MNISTViewModel
-        private(set) var epochsWanted: Int
-        var miniBatchSize: Int
+        var network: Network!
+        private(set) var dataset: MNISTViewModel!
+        private(set) var epochsWanted: Int!
+        private(set) var miniBatchSize: Int!
         
-        @Published private(set) var progress: Float = 0 // 0...1
-        private let progressIncrement: Float = 0.01 // 0>..1
+        @Published var progress: Float = 0 // 0...1
         
-        init(config: NetworkConfig = .default) {
-            if let model = Bundle.main.url(forResource: "default-model", withExtension: "nndx") {
-                network = try! Network(from: Data(contentsOf: model))! // should not fail
+        init(config: NetworkConfig? = nil) {
+            if let config = config {
+                _ = setup(config: config)
             } else {
-                network = GenericFactory.create(NetworkFactory(), config)! // probably save to unwrap
+                reset()
             }
             dataset = MNISTViewModel()
-            epochsWanted = config.epochsWanted
-            miniBatchSize = config.miniBatchSize
         }
         
-        func queryAll(use subset: MNISTSubset.Purpose = .test) async -> Float {
-            let sampleCount = dataset.count(in: subset)
-            var samplesQueried = [Int](repeating: .zero, count: sampleCount)
-            for index in 0..<sampleCount {
-                let (input, target) = dataset.fetch(index, from: subset)
-                let result = query(sample: input).maxElementIndex()! // probably save to unwrap
-                samplesQueried[index] = result == target ? 1 : 0
-                let progress = Float(index + 1) / Float(sampleCount)
-                if progress > self.progress + progressIncrement {
-                    self.progress = progress
-                }
+        func reset() -> Void {
+            let model = Bundle.main.url(forResource: "default-model", withExtension: "nndx")!
+            network = try! Network(from: Data(contentsOf: model))! // should not fail
+            
+            _ = setup(config: .default)
+        }
+        
+        func setup(config: NetworkConfig) -> Bool {
+            guard
+                let network = GenericFactory.create(NetworkFactory(), config)
+            else { return false }
+            self.network = network
+            
+            epochsWanted = config.epochsWanted
+            miniBatchSize = config.miniBatchSize
+            
+            return true
+        }
+        
+        func query(subset: MNISTSubset.Purpose = .test) async -> Float {
+            let samples = dataset.count(in: subset)
+            var results = [Int](repeating: 0, count: samples)
+            
+            for sample in 0..<samples {
+                let (image, label) = dataset.fetch(sample, from: subset)
+                let result = query(image: image).maxElementIndex()
+                results[sample] = result ?? -1 == label ? 1 : 0
+                
+                let current = Float(sample) / Float(samples)
+                advanceProgress(current)
+                
                 do {
                     try Task.checkCancellation()
                 } catch { return 0 }
             }
-            Task { @MainActor in
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                progress = 0
-            }
-            return samplesQueried.count > 0 ? Float(samplesQueried.reduce(0, +)) / Float(samplesQueried.count) : 0
+            
+            let accuracy = Float(results.reduce(0, +)) / Float(samples)
+            return accuracy
         }
         
-        func query(sample: MNISTImage) -> [Float] {
-            network.query(for: sample.toInput()).entries
+        func query(image index: Int) -> [Float] {
+            let (image, _) = dataset.fetch(index, from: .test)
+            return query(image: image)
         }
         
-        func trainAll() async -> Void {
+        func query(image: MNISTImage) -> [Float] {
+            network.query(for: image.toInput()).entries
+        }
+        
+        func train() async -> Measures {
             let measures = Measures()
             measures.trainingStartTime = Date.timeIntervalSinceReferenceDate
-            dataset.shuffle()
-            let count = dataset.count(in: .train)
-            if miniBatchSize == 1 {
-                await train(startWithSample: 0, count: count)
-            } else {
-                await train(startWithBatch: 0, count: count / miniBatchSize, measures)
+            defer {
+                measures.trainingDuration = Date.timeIntervalSinceReferenceDate - measures.trainingStartTime
             }
-            measures.trainingAccuracy = await queryAll(use: .train)
-            measures.validationAccuracy = await queryAll(use: .test)
-            measures.trainingDuration = Date.timeIntervalSinceReferenceDate - measures.trainingStartTime
+            
+            let batches = dataset.count(in: .train) / miniBatchSize
+            measures.trainingLoss = .init(repeating: 0, count: batches)
+            
+            for batch in 0..<batches {
+                let start = batch * miniBatchSize
+                let end = start + miniBatchSize
+                let cost = await train(batch: start..<end)
+                measures.trainingLoss?[batch] = cost
+                
+                let current = Float(batch) / Float(batches)
+                advanceProgress(current)
+                
+                do {
+                    try Task.checkCancellation()
+                } catch { return measures }
+            }
+            
+            measures.trainingAccuracy = await query(subset: .train)
+            measures.validationAccuracy = await query(subset: .test)
             
             if _isDebugAssertConfiguration() {
                 let _ = print(measures)
             }
+            
+            return measures
         }
         
-        func train(startWithSample index: Int, count: Int) async -> Void {
-            for i in 0..<count {
-                let (input, target) = dataset.fetch(index + i, from: .train)
-                _ = network.train(for: input.toInput(), with: target.toTarget())
-                let progress = Float(i + 1) / Float(count)
-                if progress > self.progress + progressIncrement {
-                    self.progress = progress
-                }
-                do {
-                    try Task.checkCancellation()
-                } catch { return }
-            }
-            Task { @MainActor in
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                progress = 0
-            }
+        func train(batch range: Range<Int>) async -> Float {
+            let (images, labels) = dataset.fetch(range, from: .train)
+            let cost = await network.train(for: images.toMatrix(), with: labels.toMatrix())
+            return cost
         }
         
-        func train(startWithBatch index: Int, count: Int, _ measures: Measures? = nil) async -> Void {
-            if let measures = measures {
-                measures.trainingLoss = .init(repeating: 0, count: count)
-            }
-            for i in 0..<count {
-                let a = (index + i) * miniBatchSize
-                let o = a + miniBatchSize
-                let (input, target) = dataset.fetch(a..<o, from: .train)
-                let trainingCost = await network.train(for: input.toMatrix(), with: target.toMatrix())
-                measures?.trainingLoss?[i] = trainingCost
-                let progress = Float(i + 1) / Float(count)
-                if progress > self.progress + progressIncrement {
-                    self.progress = progress
-                }
-                do {
-                    try Task.checkCancellation()
-                } catch { return }
-            }
-            Task { @MainActor in
-                try await Task.sleep(nanoseconds: 1_000_000_000)
-                progress = 0
-            }
+        func train(image index: Int) async -> Float {
+            let (image, label) = dataset.fetch(index, from: .train)
+            let loss = await network.train(for: image.toInput(), with: label.toTarget())
+            return loss
         }
         
-        func reset() -> Void {
-            network = GenericFactory.create(NetworkFactory(), .default)!
-            progress = 0
+        private func advanceProgress(_ current: Float) -> Void {
+            if current - progress > 0.01 {
+                progress += current
+            }
         }
     }
 }

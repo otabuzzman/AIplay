@@ -48,7 +48,7 @@ struct Network {
     }
     
     // train network with single input vector
-    mutating func train(for I: Matrix<Float>, with T: Matrix<Float>) -> Float {
+    mutating func train(for I: Matrix<Float>, with T: Matrix<Float>) async -> Float {
         // each layer's output
         var O: [Matrix<Float>] = []
         // network error at output layer O as difference of T - O
@@ -70,7 +70,7 @@ struct Network {
     
     // train network with multiple input vectors (batch)
     mutating func train(for I: [Matrix<Float>], with T: [Matrix<Float>]) async -> Float {
-        assert(I.count == T.count && I.count > 1, "different batch sizes for I and T")
+        assert(I.count == T.count, "different batch sizes for I and T")
         // mean layer outputs for batch
         var O: [Matrix<Float>] = []
         // init with 1st prediction for stepwise averaging to work
