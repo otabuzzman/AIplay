@@ -233,7 +233,7 @@ struct NetworkView: View {
                         }
                         HStack {
                             Button {
-                                document = NetworkExchangeDocument(viewModel.network.encode)
+                                document = NetworkExchangeDocument(viewModel.network.encode + measures.encode)
                                 isExporting = true
                             } label: {
                                 Label("Export model to Files", systemImage: "square.and.arrow.down")
@@ -274,7 +274,19 @@ struct NetworkView: View {
             switch result {
             case .success(let url):
                 do {
-                    let content = try Data(contentsOf: url[0])
+                    var content = try Data(contentsOf: url[0])
+                    
+                    guard
+                        String(from: content.subdata(in: 0..<NetworkExchangeDocument.magic.count)) == NetworkExchangeDocument.magic
+                    else {
+                        self.error = .nndxDecode(url[0])
+                        return
+                    }
+                    var content = content.advanced(by: Self.magicNumber.count)
+                    
+                    guard let networkSize = Int(from: content) else { return nil }
+                    content = content.advanced(by: MemoryLayout<Int>.size)
+                    
                     guard
                         let network = Network(from: content)
                     else {
@@ -282,6 +294,19 @@ struct NetworkView: View {
                         return
                     }
                     viewModel.network = network
+                    content = content.advanced(by: networkSize)
+                    
+                    guard let measureSize = Int(from: content) else { return nil }
+                    content = content.advanced(by: MemoryLayout<Int>.size)
+
+                    guard
+                        let measures = Measures(from: content)
+                    else {
+                        self.error = .nndxDecode(url[0])
+                        return
+                    }
+                    viewModel.measures = measures
+                    content = content.advanced(by: measureSize)
                 } catch {
                     self.error = .nndxRead(url[0], error)
                 }
@@ -470,9 +495,64 @@ class Measures {
     var trainingLoss: [Float]?
 }
 
+extension Measures {
+    init(_ trainingStartTime: TimeInterval, _ trainingDuration: TimeInterval, _ trainingAccuracy: Float, _ validationAccuracy: Float, _ trainingLoss: [Float]) {
+        self.trainingStartTime = trainingStartTime
+        self.trainingDuration = trainingDuration
+        self.trainingAccuracy = trainingAccuracy
+        self.validationAccuracy = validationAccuracy
+        self.trainingLoss = trainingLoss
+    }
+}
+
 extension Measures: CustomStringConvertible {
     var description: String {
         "Measures(trainingStartTime: \(trainingStartTime), trainingDuration: \(trainingDuration), trainingAccuracy: \(trainingAccuracy), validationAccuracy: \(validationAccuracy), trainingLoss: \(trainingLoss == nil ? "nil" : "[\(stringOfElements(in: trainingLoss!, count: 16, format: { String(describing: $0) }))])")"
+    }
+}
+
+extension Measures: CustomCoder {
+    init?(from: Data) {
+        var data = from
+        
+        guard let trainingStartTime = TimeInterval(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<TimeInterval>.size)
+        
+        guard let trainingDuration = TimeInterval(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<TimeInterval>.size)
+        
+        guard let trainingAccuracy = Float(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Float>.size)
+        
+        guard let validationAccuracy = Float(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Float>.size)
+        
+        guard let layerConfigSize = Int(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        guard let inputs = LayerConfig(from: data) else { return nil }
+        data = data.advanced(by: layerConfigSize)
+        
+        guard let trainingLossCount = Int(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        var trainingLoss = [Float]()
+        for _ in 0..<trainingLossCount {
+            guard let loss = Float(from: data) else { return nil }
+            data = data.advanced(by: MemoryLayout<Float>.size)
+            trainingLoss.append(loss)
+        }
+        
+        self.init(trainingStartTime, trainingDuration, trainingAccuracy, validationAccuracy, trainingLoss)
+    }
+    
+    var encode: Data {
+        var data = trainingStartTime.encode
+        data += trainingDuration.encode
+        data += trainingAccuracy.encode
+        data += validationAccuracy.encode
+        data += trainingLoss.count.encode
+        trainingLoss.forEach { data += $0.encode }
+        return data.count.encode + data
     }
 }
 
@@ -494,13 +574,15 @@ extension UTType {
 }
 
 struct NetworkExchangeDocument: FileDocument {
+    static let magic = "!NNXD"
+    
     static var readableContentTypes: [UTType] { [.nnxd] }
     static var writableContentTypes: [UTType] { [.nnxd] }
     
     private(set) var content: Data
     
     init(_ content: Data) {
-        self.content = content
+        self.content = magic.encode + content
     }
     
     init(configuration: FileDocumentReadConfiguration) throws {

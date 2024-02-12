@@ -117,14 +117,7 @@ extension Network: CustomStringConvertible {
 }
 
 extension Network: CustomCoder {
-    static let magicNumber = "!NNXD"
-    
     init?(from: Data) {
-        guard
-            String(from: from.subdata(in: 0..<Self.magicNumber.count)) == Self.magicNumber
-        else { return nil }
-        var data = from.advanced(by: Self.magicNumber.count)
-        
         guard let alpha = Float(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Float>.size)
         
@@ -144,11 +137,10 @@ extension Network: CustomCoder {
     }
     
     var encode: Data {
-        var data = Self.magicNumber.encode
-        data += alpha.encode
+        var data = alpha.encode
         data += layers.count.encode
         layers.forEach { data += $0.encode }
-        return data
+        return data.count.encode + data
     }
 }
 
@@ -307,16 +299,6 @@ extension NetworkConfig: CustomStringConvertible {
 }
 
 extension NetworkConfig: CustomCoder {
-    var encode: Data {
-        var data = epochsWanted.encode
-        data += miniBatchSize.encode
-        data += alpha.encode
-        data += inputs.encode
-        data += layers.count.encode
-        layers.forEach { data += $0.encode }
-        return data
-    }
-    
     init?(from: Data) {
         var data = from
         
@@ -348,6 +330,16 @@ extension NetworkConfig: CustomCoder {
         
         self.init(epochsWanted, miniBatchSize, alpha, inputs, layers)
     }
+    
+    var encode: Data {
+        var data = epochsWanted.encode
+        data += miniBatchSize.encode
+        data += alpha.encode
+        data += inputs.encode
+        data += layers.count.encode
+        layers.forEach { data += $0.encode }
+        return data
+    }
 }
 
 struct LayerConfig: Identifiable, Hashable {
@@ -374,14 +366,6 @@ extension LayerConfig: CustomStringConvertible {
 }
 
 extension LayerConfig: CustomCoder {
-    var encode: Data {
-        var data = inputs.encode
-        data += punits.encode
-        data += f.rawValue.encode
-        data += tryOnGpu.encode
-        return data.count.encode + data
-    }
-    
     init?(from: Data) {
         var data = from
         
@@ -398,6 +382,14 @@ extension LayerConfig: CustomCoder {
         guard let tryOnGpu = Bool(from: data) else { return nil }
         
         self.init(inputs, punits, f, tryOnGpu)
+    }
+    
+    var encode: Data {
+        var data = inputs.encode
+        data += punits.encode
+        data += f.rawValue.encode
+        data += tryOnGpu.encode
+        return data.count.encode + data
     }
 }
 
