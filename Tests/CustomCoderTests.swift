@@ -7,9 +7,13 @@ final class CustomCoderTests: TestCase {
         [
             (input: "", expect: ""),
             (input: "ABC", expect: "ABC"),
-            (input: "123", expect: "123")
+            (input: "123", expect: "123"),
+            (input: "123🙂", expect: "123🙂")
         ].enumerated().forEach { (testCaseIndex, testCase) in
-            let result = String(from: testCase.input.encode)
+            var data = testCase.input.encode
+            let size = Int(from: data)!
+            data = data.advanced(by: MemoryLayout<Int>.size)
+            let result = String(from: data, size: size)
             AssertEqual(testCase.expect, other: result, message: "#\(testCaseIndex + 1) failed")
         }
     }

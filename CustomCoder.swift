@@ -49,13 +49,19 @@ extension Double: CustomNumericCoder {
     var bigEndian: Self { Self(bitPattern: self.bitPattern.bigEndian) }    
 }
 
-extension String: CustomCoder {
+protocol CustomStringDecoder {
+    init?(from: Data, size: Int)
+}
+
+typealias CustomStringCoder = CustomEncoder & CustomStringDecoder
+
+extension String: CustomStringCoder {
     var encode: Data {
-        Data(self.utf8)
+        self.utf8.count.encode + self.utf8
     }
 
-    init?(from: Data) {
-        self.init(data: from, encoding: .utf8)
+    init?(from: Data, size: Int) {
+        self.init(data: from[..<size], encoding: .utf8)
     }
 }
 

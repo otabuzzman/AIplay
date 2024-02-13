@@ -19,7 +19,7 @@ extension NetworkView {
             if let model = Bundle.main.url(forResource: config.name, withExtension: "nnxd") {
                 network = try Network(from: Data(contentsOf: model))
             } else {
-                network = DefaultFactory().create(nil)
+                network = GenericFactory.create(NetworkFactory(), config)
             }
             
             epochsWanted = config.epochsWanted

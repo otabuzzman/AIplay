@@ -120,10 +120,12 @@ extension Network: CustomCoder {
     static let magicNumber = "!NNXD"
     
     init?(from: Data) {
+        var data = from
+        
         guard
-            String(from: from.subdata(in: 0..<Self.magicNumber.count)) == Self.magicNumber
+            String(from: data, size: Self.magicNumber.count) == Self.magicNumber
         else { return nil }
-        var data = from.advanced(by: Self.magicNumber.count)
+        data = from.advanced(by: Self.magicNumber.count)
         
         guard let alpha = Float(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Float>.size)
