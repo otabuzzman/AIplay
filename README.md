@@ -51,9 +51,12 @@ Apps used on iPad
 |Matrix.swift|A somewhat pimped Array type for matrix operations. Leverages vDSP.|
 |MNISTView.swift|MVVM to put MNIST on disk.|
 |Network.swift|The network implementation from MYONN book. Also includes Metal compute shader code.|
-|NetworkView.swift|MVVM to make use of network in SwiftUI.|
+|NetworkView.swift|View to make use of network in SwiftUI.|
+|NetworkViewModel.swift|View model to connect network with SwiftUI.|
+|NetworkExchange.swift|A naive ad-hoc format to persist models.|
 |CanvasView.swift|The sketch area view for handwritten input.|
 |SetupView.swift|Simple network and layer configuration UI.|
+|Statistics.swift|Chart views to show network performance.|
 |default-model.nnxd|Model in Neural Network Exchange Document (nnxd) format. Loaded on first app launch. Mini-batch (size 30), learning rate 0.3, 7 epochs. Testset performance 0.9524.|
 
 ### References

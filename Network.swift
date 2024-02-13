@@ -117,7 +117,14 @@ extension Network: CustomStringConvertible {
 }
 
 extension Network: CustomCoder {
+    static let magicNumber = "!NNXD"
+    
     init?(from: Data) {
+        guard
+            String(from: from.subdata(in: 0..<Self.magicNumber.count)) == Self.magicNumber
+        else { return nil }
+        var data = from.advanced(by: Self.magicNumber.count)
+        
         guard let alpha = Float(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Float>.size)
         
@@ -137,10 +144,11 @@ extension Network: CustomCoder {
     }
     
     var encode: Data {
-        var data = alpha.encode
+        var data = Self.magicNumber.encode
+        data += alpha.encode
         data += layers.count.encode
         layers.forEach { data += $0.encode }
-        return data.count.encode + data
+        return data
     }
 }
 
@@ -294,7 +302,7 @@ extension NetworkConfig {
 
 extension NetworkConfig: CustomStringConvertible {
     var description: String {
-        "NetworkConfig(epochsWanted: \(epochsWanted), miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers)"
+        "NetworkConfig(epochsWanted: \(epochsWanted), miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers))"
     }
 }
 
@@ -390,7 +398,7 @@ extension LayerConfig: CustomCoder {
         data += f.rawValue.encode
         data += tryOnGpu.encode
         return data.count.encode + data
-    }
+    }    
 }
 
 struct NetworkFactory: AbstractFactory {
