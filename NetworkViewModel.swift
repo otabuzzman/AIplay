@@ -1,38 +1,29 @@
+import SwiftUI
+
 extension NetworkView {
     class NetworkViewModel: ObservableObject {
         var network: Network!
         private(set) var dataset: MNISTViewModel!
+        
         private(set) var epochsWanted: Int!
         private(set) var miniBatchSize: Int!
         
         @Published var progress: Float = 0 // 0...1
         
-        init(config: NetworkConfig? = nil) {
-            if let config = config {
-                _ = setup(config: config)
-            } else {
-                reset()
-            }
+        init(config: NetworkConfig = .default) {
+            try? setup(config: config)
             dataset = MNISTViewModel()
         }
         
-        func reset() -> Void {
-            let model = Bundle.main.url(forResource: "default-model", withExtension: "nndx")!
-            network = try! Network(from: Data(contentsOf: model))! // should not fail
-            
-            _ = setup(config: .default)
-        }
-        
-        func setup(config: NetworkConfig) -> Bool {
-            guard
-                let network = GenericFactory.create(NetworkFactory(), config)
-            else { return false }
-            self.network = network
+        func setup(config: NetworkConfig) throws {
+            if let model = Bundle.main.url(forResource: config.name, withExtension: "nnxd") {
+                network = try Network(from: Data(contentsOf: model))
+            } else {
+                network = DefaultFactory().create(nil)
+            }
             
             epochsWanted = config.epochsWanted
             miniBatchSize = config.miniBatchSize
-            
-            return true
         }
         
         func query(subset: MNISTSubset.Purpose = .test) async -> Float {
@@ -66,7 +57,7 @@ extension NetworkView {
         }
         
         func train() async -> Measures {
-            let measures = Measures()
+            var measures = Measures()
             measures.trainingStartTime = Date.timeIntervalSinceReferenceDate
             defer {
                 measures.trainingDuration = Date.timeIntervalSinceReferenceDate - measures.trainingStartTime
@@ -113,7 +104,7 @@ extension NetworkView {
         
         private func advanceProgress(_ current: Float) -> Void {
             if current - progress > 0.01 {
-                progress += current
+                progress = current
             }
         }
     }
@@ -143,5 +134,15 @@ extension MNISTLabel {
             .map { _ in 0.01 }
         target[Int(self), 0] = 0.99
         return target
+    }
+}
+
+extension Array where Element: Comparable {
+    func maxElementValue() -> Element? {
+        self.max(by: { $0 < $1 })
+    }
+    
+    func maxElementIndex() -> Int? {
+        self.indices.max(by: { self[$0] < self[$1] })
     }
 }

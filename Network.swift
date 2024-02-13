@@ -283,6 +283,7 @@ extension ActivationFunction {
 }
 
 struct NetworkConfig {
+    var name: String
     var epochsWanted: Int
     var miniBatchSize: Int
     var alpha: Float
@@ -291,7 +292,8 @@ struct NetworkConfig {
 }
 
 extension NetworkConfig {
-    init(_ epochsWanted: Int, _ miniBatchSize: Int, _ alpha: Float, _ inputs: LayerConfig, _ layers: [LayerConfig]) {
+    init(_ name: String, _ epochsWanted: Int, _ miniBatchSize: Int, _ alpha: Float, _ inputs: LayerConfig, _ layers: [LayerConfig]) {
+        self.name = name
         self.epochsWanted = epochsWanted
         self.miniBatchSize = miniBatchSize
         self.alpha = alpha
@@ -302,13 +304,18 @@ extension NetworkConfig {
 
 extension NetworkConfig: CustomStringConvertible {
     var description: String {
-        "NetworkConfig(epochsWanted: \(epochsWanted), miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers))"
+        "NetworkConfig(name: \(name), epochsWanted: \(epochsWanted), miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers))"
     }
 }
 
 extension NetworkConfig: CustomCoder {
     init?(from: Data) {
         var data = from
+        
+        guard let nameSize = Int(from: data) else { return nil }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        guard let name = String(data: data[..<nameSize], encoding: .utf8) else { return nil }
+        data = data.advanced(by: nameSize)
         
         guard let epochsWanted = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
@@ -336,11 +343,14 @@ extension NetworkConfig: CustomCoder {
             layers.append(layerConfig)
         }
         
-        self.init(epochsWanted, miniBatchSize, alpha, inputs, layers)
+        self.init(name, epochsWanted, miniBatchSize, alpha, inputs, layers)
     }
     
     var encode: Data {
-        var data = epochsWanted.encode
+        let utf8 = name.utf8
+        var data = utf8.count.encode
+        data += utf8
+        data += epochsWanted.encode
         data += miniBatchSize.encode
         data += alpha.encode
         data += inputs.encode

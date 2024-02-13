@@ -61,7 +61,7 @@ func appInfo(isPresented: Binding<Bool>) -> some View {
             **Usage**
             After installation when you first start it, a file selection dialog opens where you once must select a folder to save and load files. The app then loads the MNIST data set from the internet. If the four icons (11) are green, you can start. Click red ones in case of errors to get details.
             
-            Place the `.nndx` files from the [repository](https://github.com/otabuzzman/AIplay/Resources) in the selected folder on your device and load (20) one of the pre-defined models or start right away training a new one.
+            Place the `.nnxd` files from the [repository](https://github.com/otabuzzman/AIplay/Resources) in the selected folder on your device and load (20) one of the pre-defined models or start right away training a new one.
             """, options: .init(interpretedSyntax: .inlineOnlyPreservingWhitespace))
     
     section01[section01.range(of: "11")!].foregroundColor = .accentColor
@@ -243,6 +243,7 @@ extension NetworkConfig {
     // NYONN sample configuration
     //   usage: GenericFactory.create(NetworkFactory(), .myonn)
     static let myonn = Self(
+        "default-model",
         7, 30, 0.3, LayerConfig(784, 0, .identity, false), [
             LayerConfig(784, 100, .sigmoid, false),
             LayerConfig(100, 10, .sigmoid, false)])

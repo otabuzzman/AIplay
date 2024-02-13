@@ -1,8 +1,6 @@
 import SwiftUI
 import PencilKit
 
-import UniformTypeIdentifiers
-
 struct NetworkView: View {
     @ObservedObject private var viewModel = NetworkViewModel()
     
@@ -260,8 +258,6 @@ struct NetworkView: View {
                                 batchesTrained = 0
                                 measures = []
                                 validationAccuracy = nil
-                                
-                                viewModel.reset()
                             }
                         }
                         Spacer()
@@ -301,7 +297,7 @@ struct NetworkView: View {
         .sheet(isPresented: $showSetupView) {
             let networkConfig = getNetworkConfig() ?? .default
             NetworkSetupView(isPresented: $showSetupView, networkConfig) { newConfig in
-                _ = viewModel.setup(config: newConfig)
+                try? viewModel.setup(config: newConfig)
                 setNetworkConfig(newConfig)
                 
                 showSetupView.toggle()

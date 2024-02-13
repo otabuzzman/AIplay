@@ -81,6 +81,7 @@ struct NetworkSetupView: View {
     @Binding private var isPresented: Bool
     private let commit: (NetworkConfig) -> Void
     
+    @State private var name: String
     @State private var epochsWanted: Int
     @State private var miniBatchSize: Int
     @State private var alpha: Float
@@ -92,6 +93,16 @@ struct NetworkSetupView: View {
     var body: some View {
         NavigationStack(path: $path) {
             Form {
+                Section {
+                    HStack {
+                        Text("Name")
+                        Spacer()
+                        TextField("name", text: $name)
+                            .multilineTextAlignment(.trailing)
+                            .keyboardType(.asciiCapable)
+                            .frame(width: 192)
+                    }
+                }
                 Section {
                     HStack {
                         Text("Epochs wanted")
@@ -212,6 +223,7 @@ extension NetworkSetupView {
     init(isPresented: Binding<Bool>, _ config: NetworkConfig, commit: @escaping (NetworkConfig) -> Void) {
         _isPresented = isPresented
         
+        _name = State(initialValue: config.name)
         _epochsWanted = State(initialValue: config.epochsWanted)
         _miniBatchSize = State(initialValue: config.miniBatchSize)
         _alpha = State(initialValue: config.alpha)
@@ -248,7 +260,7 @@ extension NetworkSetupView {
     }
     
     private func compileNetworkConfig() -> NetworkConfig {
-        NetworkConfig(epochsWanted, miniBatchSize, alpha, inputs, compileLayerConfig())
+        NetworkConfig(name, epochsWanted, miniBatchSize, alpha, inputs, compileLayerConfig())
     }    
 }
 

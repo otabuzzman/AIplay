@@ -1,3 +1,5 @@
+import Foundation
+
 struct Measures {
     var trainingStartTime: TimeInterval = 0
     var trainingDuration: TimeInterval = 0
@@ -41,16 +43,17 @@ extension Measures: CustomCoder {
         guard let trainingLossCount = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
+        var trainingLoss: [Float]?
         if trainingLossCount == 0 {
-            trainingLoss = nil
-        } else {
             trainingLoss = [Float]()
             for _ in 0..<trainingLossCount {
                 guard let loss = Float(from: data) else { return nil }
                 data = data.advanced(by: MemoryLayout<Float>.size)
-                trainingLoss.append(loss)
+                trainingLoss?.append(loss)
             }
         }
+        
+        self.init(trainingStartTime, trainingDuration, trainingAccuracy, validationAccuracy, trainingLoss)
     }
     
     var encode: Data {

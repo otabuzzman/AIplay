@@ -1,5 +1,7 @@
 import SwiftUI
 
+import UniformTypeIdentifiers
+
 struct NetworkExchangeDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.nnxd] }
     static var writableContentTypes: [UTType] { [.nnxd] }
@@ -14,7 +16,7 @@ struct NetworkExchangeDocument: FileDocument {
         guard
             let content = configuration.file.regularFileContents
         else {
-            let url = URL(configuration.file.fileName ?? "unknown")
+            let url = URL(string: configuration.file.filename ?? "unknown")!
             throw NetworkExchangeDocumentError.modified(url)
         }
         self.content = content
