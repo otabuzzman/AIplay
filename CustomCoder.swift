@@ -50,7 +50,7 @@ extension Double: CustomNumericCoder {
 }
 
 protocol CustomStringDecoder {
-    init?(from: Data, size: Int)
+    init?(from: Data, bytes: Int)
 }
 
 typealias CustomStringCoder = CustomEncoder & CustomStringDecoder
@@ -60,8 +60,8 @@ extension String: CustomStringCoder {
         self.utf8.count.encode + self.utf8
     }
     
-    init?(from: Data, size: Int) {
-        self.init(data: from[..<size], encoding: .utf8)
+    init?(from: Data, bytes: Int) {
+        self.init(data: from[..<bytes], encoding: .utf8)
     }
 }
 

@@ -123,7 +123,7 @@ extension Network: CustomCoder {
         var data = from
         
         guard
-            String(from: data, size: Self.magicNumber.count) == Self.magicNumber
+            String(from: data, bytes: Self.magicNumber.count) == Self.magicNumber
         else { return nil }
         data = from.advanced(by: Self.magicNumber.count)
         
