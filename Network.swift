@@ -116,6 +116,16 @@ extension Network: CustomStringConvertible {
     }
 }
 
+extension Network {
+    var config: NetworkConfig {
+        let input = layers[0].config
+        var other: LayerConfig
+        for index in 1..<layers.count {
+            other.append(layers[index].config)
+        return NetworkConfig("", -1, miniBatchSize, alpha, input, other)
+    }
+}
+
 extension Network: CustomCoder {
     init?(from: Data) {
         var data = from
@@ -199,6 +209,12 @@ struct Layer {
 extension Layer: CustomStringConvertible {
     var description: String {
         "Layer(inputs: \(inputs), punits: \(punits), f: \(f), W: \(W))"
+    }
+}
+
+extension Layer {
+    var config: LayerConfig {
+        LayerConfig(inputs, punits, f, false)
     }
 }
 

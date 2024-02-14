@@ -271,23 +271,17 @@ struct NetworkView: View {
             switch result {
             case .success(let url):
                 do {
-                    let content = try Data(contentsOf: url[0])
-                    guard
-                        let network = Network(from: content)
-                    else {
-                        self.error = .nnxdDecode(url[0])
-                        return
-                    }
-                    viewModel.network = network
+                    networkConfig = try importNNXD(from: contentsOf)
                 } catch {
-                    self.error = .nnxdRead(url[0], error)
+                    self.error = error
                 }
+                setNetworkConfig(networkConfig)
             case .failure(let error):
                 self.error = .nnxdLoad(error)
             }
         }
         // modifier attached to Button reopens system interface on pressing return and hide keys
-        .fileExporter(isPresented: $isExporting, document: document, contentType: .nnxd, defaultFilename: "Untitled") { result in
+        .fileExporter(isPresented: $isExporting, document: document, contentType: .nnxd, defaultFilename: getNetworkConfig()?.name ?? "Untitled") { result in
             switch result {
             case .success:
                 break
@@ -312,7 +306,7 @@ struct NetworkView: View {
 }
 
 extension NetworkView {
-    func compileNNXD() -> Data {
+    private func compileNNXD() -> Data {
         // header
         var data = nnxdMagic.encode
         data += nnxdVersion.encode
@@ -327,29 +321,54 @@ extension NetworkView {
         return data
     }
     
-    func importNNXD(contentsOf: URL) throws -> Void {
-        var data: Data
-        do {
-            data = try Data(contentsOf: contentsOf)
+    private func importNNXD(contentsOf: URL) throws -> NetworkConfig {
+        var networkConfig: NetworkConfig
+        
+        do { // read NNXD
+            var data = try Data(contentsOf: contentsOf)
         } catch { throw NetworkExchangeError.nnxdRead(contentsOf, error) }
         
-        guard
+        // header
+        guard // check magic string...
             let magic = String(from data, bytes: nnxdMagic.count)
         else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
         if magic != nnxdMagic { throw NetworkExchangeError.nnxdDecode(contentsOf) }
         data = data.advanced(by: nnxdMagic.count)
         
-        guard
+        guard // ...and version
             let version = Int(from:data)
         else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
         if version != nnxdVersion { throw NetworkExchangeError.nnxdDecode(contentsOf) }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        guard
-            let networkSize = Int(from:data)
-        else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        // section: network
+        guard let networkSize = Int(from:data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        data = data.advanced(by: MemoryLayout<Int>.size)
         
+        guard let network = Network(from:data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        data = data.advanced(by: networkSize)
         
+        networkConfig = network.config
+        viewModel.network = network
+        
+        // section: measures
+        guard let measuresCount = Int(from:data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        self.measures = [Measures]()
+        for _ in 0..<measuresCount {
+            guard let measureSize = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+            data = data.advanced(by: MemoryLayout<Int>.size)
+            guard let element = Measures(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+            data = data.advanced(by: measureSize)
+            self.measures.append(element)
+        }
+        
+        networkConfig.epochsWanted = measuresCount
+        
+        networkConfig.name = contentsOf.deletePathExtension().lastPathComponent
+        
+        return networkConfig
     }
 }
 
