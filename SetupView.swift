@@ -94,13 +94,15 @@ struct NetworkSetupView: View {
         NavigationStack(path: $path) {
             Form {
                 Section {
-                    HStack {
-                        Text("Name")
+                    HStack(spacing: 0) {
+                        Text("File name")
                         Spacer()
                         TextField("name", text: $name)
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.asciiCapable)
-                            .frame(width: 192)
+                            .frame(width: 128)
+                        Text(".nnxd")
+                            .foregroundStyle(.gray)
                     }
                 }
                 Section {

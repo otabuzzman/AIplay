@@ -59,7 +59,7 @@ extension String: CustomStringCoder {
     var encode: Data {
         self.utf8.count.encode + self.utf8
     }
-
+    
     init?(from: Data, size: Int) {
         self.init(data: from[..<size], encoding: .utf8)
     }
