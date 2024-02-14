@@ -117,15 +117,8 @@ extension Network: CustomStringConvertible {
 }
 
 extension Network: CustomCoder {
-    static let magicNumber = "!NNXD"
-    
     init?(from: Data) {
         var data = from
-        
-        guard
-            String(from: data, bytes: Self.magicNumber.count) == Self.magicNumber
-        else { return nil }
-        data = from.advanced(by: Self.magicNumber.count)
         
         guard let alpha = Float(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Float>.size)

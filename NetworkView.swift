@@ -231,7 +231,8 @@ struct NetworkView: View {
                         }
                         HStack {
                             Button {
-                                document = NetworkExchangeDocument(viewModel.network.encode)
+                                let nnxd = compileNNXD()
+                                document = NetworkExchangeDocument(nnxd)
                                 isExporting = true
                             } label: {
                                 Label("Export model to Files", systemImage: "square.and.arrow.down")
@@ -307,6 +308,48 @@ struct NetworkView: View {
                 }
             }
         }
+    }
+}
+
+extension NetworkView {
+    func compileNNXD() -> Data {
+        // header
+        var data = nnxdMagic.encode
+        data += nnxdVersion.encode
+
+        // section: network
+        data += network.encode
+
+        // section: measures
+        data += measures.count.encode
+        measures.ForEach { data += $0.encode }
+
+        return data
+    }
+    
+    func importNNXD(contentsOf: URL) throws -> Void {
+        var data: Data
+        do {
+            data = try Data(contentsOf: contentsOf)
+        } catch { throw NetworkExchangeError.nnxdRead(contentsOf, error) }
+        
+        guard
+            let magic = String(from data, bytes: nnxdMagic.count)
+        else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        if magic != nnxdMagic { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        data = data.advanced(by: nnxdMagic.count)
+        
+        guard
+            let version = Int(from:data)
+        else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        if version != nnxdVersion { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        data = data.advanced(by: MemoryLayout<Int>.size)
+        
+        guard
+            let networkSize = Int(from:data)
+        else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        
+        
     }
 }
 

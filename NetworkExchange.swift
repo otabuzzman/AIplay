@@ -2,6 +2,9 @@ import SwiftUI
 
 import UniformTypeIdentifiers
 
+let nnxdMagic = "!NNXD"
+let nnxdVersion = 2
+
 struct NetworkExchangeDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.nnxd] }
     static var writableContentTypes: [UTType] { [.nnxd] }
