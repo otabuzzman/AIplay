@@ -3,28 +3,9 @@ import SwiftUI
 extension NetworkView {
     class NetworkViewModel: ObservableObject {
         var network: Network!
-        private(set) var dataset: MNISTViewModel!
-        
-        private(set) var epochsWanted: Int!
-        private(set) var miniBatchSize: Int!
+        private(set) var dataset = MNISTViewModel()
         
         @Published var progress: Float = 0 // 0...1
-        
-        init(config: NetworkConfig = .default) {
-            try? setup(config: config)
-            dataset = MNISTViewModel()
-        }
-        
-        func setup(config: NetworkConfig) throws {
-            if let model = Bundle.main.url(forResource: config.name, withExtension: "nnxd") {
-                network = try Network(from: Data(contentsOf: model))
-            } else {
-                network = GenericFactory.create(NetworkFactory(), config)
-            }
-            
-            epochsWanted = config.epochsWanted
-            miniBatchSize = config.miniBatchSize
-        }
         
         func query(subset: MNISTSubset.Purpose = .test) async -> Float {
             let samples = dataset.count(in: subset)
@@ -56,19 +37,21 @@ extension NetworkView {
             network.query(for: image.toInput()).entries
         }
         
-        func train() async -> Measures {
+        func train(miniBatchSize: Int? = nil) async -> Measures {
+            let batchSize = miniBatchSize ?? dataset.count(in: .train)
+            
             var measures = Measures()
             measures.trainingStartTime = Date.timeIntervalSinceReferenceDate
             defer {
                 measures.trainingDuration = Date.timeIntervalSinceReferenceDate - measures.trainingStartTime
             }
             
-            let batches = dataset.count(in: .train) / miniBatchSize
+            let batches = dataset.count(in: .train) / batchSize
             measures.trainingLoss = .init(repeating: 0, count: batches)
             
             for batch in 0..<batches {
-                let start = batch * miniBatchSize
-                let end = start + miniBatchSize
+                let start = batch * batchSize
+                let end = start + batchSize
                 let cost = await train(batch: start..<end)
                 measures.trainingLoss?[batch] = cost
                 

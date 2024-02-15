@@ -118,11 +118,12 @@ extension Network: CustomStringConvertible {
 
 extension Network {
     var config: NetworkConfig {
-        let input = layers[0].config
-        var other: LayerConfig
-        for index in 1..<layers.count {
+        var other = [LayerConfig]()
+        for index in 0..<layers.count {
             other.append(layers[index].config)
-        return NetworkConfig("", -1, miniBatchSize, alpha, input, other)
+        }
+        let input = LayerConfig(other[0].inputs, 0, .identity, false)
+        return NetworkConfig("", -1, -1, alpha, input, other)
     }
 }
 
@@ -149,11 +150,10 @@ extension Network: CustomCoder {
     }
     
     var encode: Data {
-        var data = Self.magicNumber.encode
-        data += alpha.encode
+        var data = alpha.encode
         data += layers.count.encode
         layers.forEach { data += $0.encode }
-        return data
+        return data.count.encode + data
     }
 }
 
