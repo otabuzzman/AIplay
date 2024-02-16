@@ -122,8 +122,9 @@ extension Network {
         for index in 0..<layers.count {
             other.append(layers[index].config)
         }
-        let input = LayerConfig(other[0].inputs, 0, .identity, false)
-        return NetworkConfig("", -1, -1, alpha, input, other)
+        let input = LayerConfig(inputs: other[0].inputs, punits: 0, f: .identity, tryOnGpu: false)
+        return NetworkConfig(name: "", epochsWanted: -1, miniBatchSize: -1,
+                             alpha: alpha, inputs: input, layers: other)
     }
 }
 
@@ -214,7 +215,7 @@ extension Layer: CustomStringConvertible {
 
 extension Layer {
     var config: LayerConfig {
-        LayerConfig(inputs, punits, f, false)
+        LayerConfig(inputs: inputs, punits: punits, f: f, tryOnGpu: false)
     }
 }
 

@@ -57,7 +57,7 @@ struct LayerSetupView: View {
         }
         .toolbar { 
             Button("Commit") {
-                commit(LayerConfig(inputs, punits, f, tryOnGpu))
+                commit(LayerConfig(inputs: inputs, punits: punits, f: f, tryOnGpu: tryOnGpu))
                 path = NavigationPath()
             }
         }
@@ -172,7 +172,7 @@ struct NetworkSetupView: View {
                         Text("LAYERS")
                             .font(.subheadline)
                         Spacer()
-                        NavigationLink(value: LayerConfig(1, -1, .identity, false)) {
+                        NavigationLink(value: LayerConfig(inputs: 1, punits: -1, f: .identity, tryOnGpu: false)) {
                             Image(systemName: "plus")
                         }
                     }
@@ -246,22 +246,22 @@ extension NetworkSetupView {
     
     private func compileLayerConfig() -> [LayerConfig] {
         var layerConfig = [LayerConfig(
-            inputs.inputs,
-            layers[0].punits,
-            layers[0].f,
-            layers[0].tryOnGpu)]
+            inputs: inputs.inputs,
+            punits: layers[0].punits,
+            f: layers[0].f,
+            tryOnGpu: layers[0].tryOnGpu)]
         for index in 1..<self.layers.count {
             layerConfig.append(LayerConfig(
-                layerConfig[index - 1].punits,
-                layers[index].punits,
-                layers[index].f,
-                layers[index].tryOnGpu))
+                inputs: layerConfig[index - 1].punits,
+                punits: layers[index].punits,
+                f: layers[index].f,
+                tryOnGpu: layers[index].tryOnGpu))
         }
         return layerConfig
     }
     
     private func compileNetworkConfig() -> NetworkConfig {
-        NetworkConfig(name, epochsWanted, miniBatchSize, alpha, inputs, compileLayerConfig())
+        NetworkConfig(name: name, epochsWanted: epochsWanted, miniBatchSize: miniBatchSize, alpha: alpha, inputs: inputs, layers: compileLayerConfig())
     }    
 }
 

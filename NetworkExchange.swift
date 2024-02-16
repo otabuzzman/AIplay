@@ -71,15 +71,15 @@ extension UTType {
 
 struct NNXD {
     // header
-    let magic = "!NXXD"
+    let magic = "!NNXD"
     let version = 2
     
     // section: hyper parameters
     var epochsWanted: Int
     var miniBatchSize: Int
     
-    // section: netowrk
-    var netowrk: Network
+    // section: network
+    var network: Network
     
     // section: measures
     var measures: Array<Measures>
@@ -105,53 +105,46 @@ extension NNXD: CustomCoder {
         return data
     }
     
-    init(from: Data) {
+    init?(from: Data) {
         var data = from
         
-        guard // check magic string... (cannot use .init? here)
-            let magic = String(data: data[..<magic.count], encoding: .utf8)
-        else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-        
-        if magic != self.magic { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        // check magic string... (cannot use .init? here)
+        guard let magic = String(data: data[..<magic.count], encoding: .utf8) else { return nil }
+        if magic != self.magic { return nil }
         data = data.advanced(by: magic.count)
-        
-        guard // ...and version
-            let version = Int(from: data)
-        else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-        
-        if version != self.version { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        // ...and version
+        guard let version = Int(from: data) else { return nil }
+        if version != self.version { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
         // section: hyper parameters
-        guard let epochsWanted = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        guard let epochsWanted = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
-        guard let miniBatchSize = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        guard let miniBatchSize = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
         // section: network
-        guard let networkSize = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        guard let networkSize = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        guard let netowrk = Network(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        guard let network = Network(from: data) else { return nil }
         data = data.advanced(by: networkSize)
         
         // section: measures
-        guard let measuresCount = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        guard let measuresCount = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        let measures = [Measures]()
+        measures = [Measures]()
         for _ in 0..<measuresCount {
-            guard let measureSize = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+            guard let measureSize = Int(from: data) else { return nil }
             data = data.advanced(by: MemoryLayout<Int>.size)
-            guard let element = Measures(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+            guard let element = Measures(from: data) else { return nil }
             data = data.advanced(by: measureSize)
             measures.append(element)
         }
         
         self.epochsWanted = epochsWanted
         self.miniBatchSize = miniBatchSize
-        self.netowrk = netowrk
-        self.measures = measures
+        self.network = network
     }
 }
-

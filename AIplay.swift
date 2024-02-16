@@ -243,8 +243,10 @@ extension NetworkConfig {
     // NYONN sample configuration
     //   usage: GenericFactory.create(NetworkFactory(), .myonn)
     static let myonn = Self(
-        "default-model",
-        7, 30, 0.3, LayerConfig(784, 0, .identity, false), [
-            LayerConfig(784, 100, .sigmoid, false),
-            LayerConfig(100, 10, .sigmoid, false)])
+        name: "default-model",
+        epochsWanted: 7, miniBatchSize: 30, alpha: 0.3,
+        inputs: LayerConfig(inputs: 784, punits: 0, f: .identity, tryOnGpu: false),
+        layers: [
+            LayerConfig(inputs: 784, punits: 100, f: .sigmoid, tryOnGpu: false),
+            LayerConfig(inputs: 100, punits: 10, f: .sigmoid, tryOnGpu: false)])
 }
