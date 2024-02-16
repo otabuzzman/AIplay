@@ -2,7 +2,7 @@ import SwiftUI
 
 extension NetworkView {
     class NetworkViewModel: ObservableObject {
-        var network: Network!
+        var nnxd: NNXD!
         private(set) var dataset = MNISTViewModel()
         
         @Published var progress: Float = 0 // 0...1
@@ -34,24 +34,19 @@ extension NetworkView {
         }
         
         func query(image: MNISTImage) -> [Float] {
-            network.query(for: image.toInput()).entries
+            nnxd.network.query(for: image.toInput()).entries
         }
         
-        func train(miniBatchSize: Int? = nil) async -> Measures {
-            let batchSize = miniBatchSize ?? dataset.count(in: .train)
-            
+        func train() async -> Void {
             var measures = Measures()
             measures.trainingStartTime = Date.timeIntervalSinceReferenceDate
-            defer {
-                measures.trainingDuration = Date.timeIntervalSinceReferenceDate - measures.trainingStartTime
-            }
             
-            let batches = dataset.count(in: .train) / batchSize
+            let batches = dataset.count(in: .train) / nnxd.miniBatchSize
             measures.trainingLoss = .init(repeating: 0, count: batches)
             
             for batch in 0..<batches {
-                let start = batch * batchSize
-                let end = start + batchSize
+                let start = batch * nnxd.miniBatchSize
+                let end = start + nnxd.miniBatchSize
                 let cost = await train(batch: start..<end)
                 measures.trainingLoss?[batch] = cost
                 
@@ -60,28 +55,29 @@ extension NetworkView {
                 
                 do {
                     try Task.checkCancellation()
-                } catch { return measures }
+                } catch { return }
             }
             
             measures.trainingAccuracy = await query(subset: .train)
             measures.validationAccuracy = await query(subset: .test)
             
+            measures.trainingDuration = Date.timeIntervalSinceReferenceDate - measures.trainingStartTime
+            nnxd.measures.append(measures)
+            
             if _isDebugAssertConfiguration() {
                 let _ = print(measures)
             }
-            
-            return measures
         }
         
         func train(batch range: Range<Int>) async -> Float {
             let (images, labels) = dataset.fetch(range, from: .train)
-            let cost = await network.train(for: images.toMatrix(), with: labels.toMatrix())
+            let cost = await nnxd.network.train(for: images.toMatrix(), with: labels.toMatrix())
             return cost
         }
         
         func train(image index: Int) async -> Float {
             let (image, label) = dataset.fetch(index, from: .train)
-            let loss = await network.train(for: image.toInput(), with: label.toTarget())
+            let loss = await nnxd.network.train(for: image.toInput(), with: label.toTarget())
             return loss
         }
         

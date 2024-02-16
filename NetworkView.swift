@@ -20,11 +20,7 @@ struct NetworkView: View {
     
     @State private var showResultDetails = false
     
-    @State private var epochsWanted: Int = 0
-    @State private var miniBatchSize: Int = 0
-    
     @State private var batchesTrained = 0
-    @State private var measures = [Measures]()
     @State private var validationAccuracy: Float?
     
     @State private var document: NetworkExchangeDocument?
@@ -194,8 +190,7 @@ struct NetworkView: View {
                             Button {
                                 longRunTask = Task { @MainActor in
                                     longRunBusy = true
-                                    let measures = await viewModel.train(miniBatchSize: miniBatchSize)
-                                    self.measures.append(measures)
+                                    await viewModel.train()
                                     longRunBusy = false
                                     Task {
                                         try await Task.sleep(nanoseconds: 1_000_000_000)
@@ -234,8 +229,7 @@ struct NetworkView: View {
                         }
                         HStack {
                             Button {
-                                let data = encodeNNXD()
-                                document = NetworkExchangeDocument(data)
+                                document = NetworkExchangeDocument(viewModel.nnxd.encode)
                                 isExporting = true
                             } label: {
                                 Label("Export model to Files", systemImage: "square.and.arrow.down")
@@ -260,7 +254,6 @@ struct NetworkView: View {
                                 resultDetails = nil
                                 resultReading = nil
                                 batchesTrained = 0
-                                measures = []
                                 validationAccuracy = nil
                             }
                         }
@@ -273,17 +266,16 @@ struct NetworkView: View {
         .fileImporter(isPresented: $isImporting, allowedContentTypes: [.nnxd], allowsMultipleSelection: false) { result in
             switch result {
             case .success(let url):
+                let model = url[0]
                 do {
-                    let config = try decodeNNXD(contentsOf: url[0]) { network, measures in
-                        viewModel.network = network.pointee
-                        self.measures = measures.pointee
-                    }
-                    epochsWanted = config.epochsWanted
-                    miniBatchSize = config.miniBatchSize
-                    setNetworkConfig(config)
+                    let data = try Data(contentsOf: model)
+                    viewModel.nnxd = NNXD(from: data)
                 } catch {
-                    self.error = error as? NetworkExchangeError
+                    self.error = .nnxdRead(model, error)
                 }
+                var config = viewModel.nnxd.config
+                config.name = model.shortname
+                setNetworkConfig(config)
             case .failure(let error):
                 self.error = .nnxdLoad(error)
             }
@@ -300,10 +292,9 @@ struct NetworkView: View {
         .sheet(isPresented: $showSetupView) {
             let networkConfig = getNetworkConfig() ?? .default
             NetworkSetupView(isPresented: $showSetupView, networkConfig) { newConfig in
-                viewModel.network = GenericFactory.create(NetworkFactory(), newConfig)
+                viewModel.nnxd.config = newConfig
                 setNetworkConfig(newConfig)
-                epochsWanted = newConfig.epochsWanted
-                miniBatchSize = newConfig.miniBatchSize
+                
                 showSetupView.toggle()
                 
                 if _isDebugAssertConfiguration() {
@@ -312,98 +303,17 @@ struct NetworkView: View {
             }
         }
         .task {
-            let storedConfig = getNetworkConfig() ?? .default
             guard
-                let model = Bundle.main.url(forResource: storedConfig.name, withExtension: "nnxd")
+                let model = Bundle.main.url(forResource: NetworkConfig.default.name, withExtension: "nnxd")
             else { return }
-            let loadedConfig = try! decodeNNXD(contentsOf: model) { network, measures in
-                viewModel.network = network.pointee
-                self.measures = measures.pointee
-            }
-            epochsWanted = loadedConfig.epochsWanted
-            miniBatchSize = loadedConfig.miniBatchSize
+            do {
+                let data = try Data(contentsOf: model)
+                viewModel.nnxd = NNXD(from: data)
+            } catch { return }
+            var config = viewModel.nnxd.config
+            config.name = model.shortname
+            setNetworkConfig(config)
         }
-    }
-}
-
-extension NetworkView {
-    private func encodeNNXD() -> Data {
-        // header
-        var data = nnxdMagic.data(using: .utf8)! // cannot use .encode here
-        data += nnxdVersion.encode
-        
-        // section: hyper parameters
-        data += epochsWanted.encode
-        data += miniBatchSize.encode
-        
-        // section: network
-        data += viewModel.network.encode
-        
-        // section: measures
-        data += measures.count.encode
-        measures.forEach { data += $0.encode }
-        
-        return data
-    }
-    
-    private func decodeNNXD(contentsOf: URL, loader: ((UnsafeMutablePointer<Network>, UnsafeMutablePointer<Array<Measures>>) -> Void)? = nil) throws -> NetworkConfig {
-        var data: Data
-        
-        do { // read NNXD
-            data = try Data(contentsOf: contentsOf)
-        } catch { throw NetworkExchangeError.nnxdRead(contentsOf, error) }
-        
-        // header
-        guard // check magic string... (cannot use .init? here)
-            let magic = String(data: data[..<nnxdMagic.count], encoding: .utf8)
-        else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-        
-        if magic != nnxdMagic { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-        data = data.advanced(by: nnxdMagic.count)
-        
-        guard // ...and version
-            let version = Int(from: data)
-        else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-        
-        if version != nnxdVersion { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-        data = data.advanced(by: MemoryLayout<Int>.size)
-        
-        // section: hyper parameters
-        guard let epochsWanted = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-        data = data.advanced(by: MemoryLayout<Int>.size)
-        guard let miniBatchSize = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-        data = data.advanced(by: MemoryLayout<Int>.size)
-        
-        // section: network
-        guard let networkSize = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-        data = data.advanced(by: MemoryLayout<Int>.size)
-        
-        var network = Network(from: data)
-        if network == nil { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-        data = data.advanced(by: networkSize)
-        
-        // section: measures
-        guard let measuresCount = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-        data = data.advanced(by: MemoryLayout<Int>.size)
-        
-        var measures = [Measures]()
-        for _ in 0..<measuresCount {
-            guard let measureSize = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-            data = data.advanced(by: MemoryLayout<Int>.size)
-            guard let element = Measures(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
-            data = data.advanced(by: measureSize)
-            measures.append(element)
-        }
-        
-        var networkConfig = network!.config
-        networkConfig.name = contentsOf
-            .deletingPathExtension()
-            .lastPathComponent
-        networkConfig.epochsWanted = epochsWanted
-        networkConfig.miniBatchSize = miniBatchSize
-        
-        loader?(&network!, &measures)
-        return networkConfig
     }
 }
 
@@ -453,5 +363,11 @@ struct MSwitch<T: View, U: View>: View {
         } else {
             dark
         }
+    }
+}
+
+extension URL {
+    var shortname: String {
+        self.deletingPathExtension().lastPathComponent
     }
 }

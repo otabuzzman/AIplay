@@ -2,9 +2,6 @@ import SwiftUI
 
 import UniformTypeIdentifiers
 
-let nnxdMagic = "!NNXD"
-let nnxdVersion = 2
-
 struct NetworkExchangeDocument: FileDocument {
     static var readableContentTypes: [UTType] { [.nnxd] }
     static var writableContentTypes: [UTType] { [.nnxd] }
@@ -74,7 +71,7 @@ struct NNXD {
     let magic = "!NNXD"
     let version = 2
     
-    // section: hyper parameters
+    // section: hyper params
     var epochsWanted: Int
     var miniBatchSize: Int
     
@@ -85,13 +82,28 @@ struct NNXD {
     var measures: Array<Measures>
 }
 
+extension NNXD {
+    var config: NetworkConfig {
+        get {
+            var config = network.config
+            config.epochsWanted = epochsWanted
+            config.miniBatchSize = miniBatchSize
+            return config
+        }
+        set(config) {
+            network = GenericFactory.create(NetworkFactory(), config)!
+            epochsWanted = config.epochsWanted
+            miniBatchSize = config.miniBatchSize
+        }
+    }
+}
 extension NNXD: CustomCoder {
     var encode: Data {
         // header
         var data = magic.data(using: .utf8)! // cannot use .encode here
         data += version.encode
         
-        // section: hyper parameters
+        // section: hyper params
         data += epochsWanted.encode
         data += miniBatchSize.encode
         
@@ -117,7 +129,7 @@ extension NNXD: CustomCoder {
         if version != self.version { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        // section: hyper parameters
+        // section: hyper params
         guard let epochsWanted = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         guard let miniBatchSize = Int(from: data) else { return nil }
