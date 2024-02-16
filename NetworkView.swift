@@ -20,6 +20,7 @@ struct NetworkView: View {
     
     @State private var showResultDetails = false
     
+    @State private var epochsTrained = 0    
     @State private var batchesTrained = 0
     @State private var validationAccuracy: Float?
     
@@ -191,6 +192,7 @@ struct NetworkView: View {
                                 longRunTask = Task { @MainActor in
                                     longRunBusy = true
                                     await viewModel.train()
+                                    epochsTrained += 1
                                     longRunBusy = false
                                     Task {
                                         try await Task.sleep(nanoseconds: 1_000_000_000)
@@ -201,6 +203,7 @@ struct NetworkView: View {
                                 Label("Train another epoch", systemImage: "figure.strengthtraining.traditional")
                             }
                             Spacer()
+                            Text("\(epochsTrained)")
                         }
                         HStack {
                             Button {
@@ -253,6 +256,7 @@ struct NetworkView: View {
                                 }
                                 resultDetails = nil
                                 resultReading = nil
+                                epochsTrained = 0
                                 batchesTrained = 0
                                 validationAccuracy = nil
                             }

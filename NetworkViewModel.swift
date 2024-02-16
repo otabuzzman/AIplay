@@ -82,6 +82,9 @@ extension NetworkView {
         }
         
         private func advanceProgress(_ current: Float) -> Void {
+            if progress > current {
+                progress = 0
+            }
             if current - progress > 0.01 {
                 progress = current
             }
