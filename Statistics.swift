@@ -8,16 +8,6 @@ struct Measures {
     var trainingLoss: [Float]?
 }
 
-extension Measures {
-    init(_ trainingStartTime: TimeInterval, _ trainingDuration: TimeInterval, _ trainingAccuracy: Float, _ validationAccuracy: Float, _ trainingLoss: [Float]? = nil) {
-        self.trainingStartTime = trainingStartTime
-        self.trainingDuration = trainingDuration
-        self.trainingAccuracy = trainingAccuracy
-        self.validationAccuracy = validationAccuracy
-        self.trainingLoss = trainingLoss
-    }
-}
-
 extension Measures: CustomStringConvertible {
     var description: String {
         "Measures(trainingStartTime: \(trainingStartTime), trainingDuration: \(trainingDuration), trainingAccuracy: \(trainingAccuracy), validationAccuracy: \(validationAccuracy), trainingLoss: \(trainingLoss == nil ? "nil" : "[\(stringOfElements(in: trainingLoss!, count: 16, format: { String(describing: $0) }))]"))"
@@ -43,7 +33,6 @@ extension Measures: CustomCoder {
         guard let trainingLossCount = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        var trainingLoss: [Float]?
         if trainingLossCount == 0 {
             trainingLoss = [Float]()
             for _ in 0..<trainingLossCount {
@@ -53,7 +42,10 @@ extension Measures: CustomCoder {
             }
         }
         
-        self.init(trainingStartTime, trainingDuration, trainingAccuracy, validationAccuracy, trainingLoss)
+        self.trainingStartTime = trainingStartTime
+        self.trainingDuration = trainingDuration
+        self.trainingAccuracy = trainingAccuracy
+        self.validationAccuracy = validationAccuracy
     }
     
     var encode: Data {

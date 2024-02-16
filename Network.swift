@@ -302,17 +302,6 @@ struct NetworkConfig {
     var layers: [LayerConfig]
 }
 
-extension NetworkConfig {
-    init(_ name: String, _ epochsWanted: Int, _ miniBatchSize: Int, _ alpha: Float, _ inputs: LayerConfig, _ layers: [LayerConfig]) {
-        self.name = name
-        self.epochsWanted = epochsWanted
-        self.miniBatchSize = miniBatchSize
-        self.alpha = alpha
-        self.inputs = inputs
-        self.layers = layers
-    }
-}
-
 extension NetworkConfig: CustomStringConvertible {
     var description: String {
         "NetworkConfig(name: \(name), epochsWanted: \(epochsWanted), miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers))"
@@ -345,7 +334,7 @@ extension NetworkConfig: CustomCoder {
         guard let layerConfigCount = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        var layers = [LayerConfig]()
+        layers = [LayerConfig]()
         for _ in 0..<layerConfigCount {
             guard let layerConfigSize = Int(from: data) else { return nil }
             data = data.advanced(by: MemoryLayout<Int>.size)
@@ -354,7 +343,11 @@ extension NetworkConfig: CustomCoder {
             layers.append(layerConfig)
         }
         
-        self.init(name, epochsWanted, miniBatchSize, alpha, inputs, layers)
+        self.name = name
+        self.epochsWanted = epochsWanted
+        self.miniBatchSize = miniBatchSize
+        self.alpha = alpha
+        self.inputs = inputs
     }
     
     var encode: Data {
@@ -379,15 +372,6 @@ struct LayerConfig: Identifiable, Hashable {
     var tryOnGpu: Bool
 }
 
-extension LayerConfig {
-    init(_ inputs: Int, _ punits: Int, _ f: ActivationFunction, _ tryOnGpu: Bool) {
-        self.inputs = inputs
-        self.punits = punits
-        self.f = f
-        self.tryOnGpu = tryOnGpu
-    }
-}
-
 extension LayerConfig: CustomStringConvertible {
     var description: String {
         "LayerConfig(inputs: \(inputs), punits: \(punits), f: \(f), tryOnGpu: \(tryOnGpu)"
@@ -410,7 +394,10 @@ extension LayerConfig: CustomCoder {
         
         guard let tryOnGpu = Bool(from: data) else { return nil }
         
-        self.init(inputs, punits, f, tryOnGpu)
+        self.inputs = inputs
+        self.punits = punits
+        self.f = f
+        self.tryOnGpu = tryOnGpu
     }
     
     var encode: Data {
