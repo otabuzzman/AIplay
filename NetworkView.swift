@@ -332,6 +332,7 @@ extension NetworkView {
         data += nnxdVersion.encode
         
         // section: hyper parameters
+        data += epochsWanted.encode
         data += miniBatchSize.encode
         
         // section: network
@@ -367,6 +368,8 @@ extension NetworkView {
         data = data.advanced(by: MemoryLayout<Int>.size)
         
         // section: hyper parameters
+        guard let epochsWanted = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
+        data = data.advanced(by: MemoryLayout<Int>.size)
         guard let miniBatchSize = Int(from: data) else { throw NetworkExchangeError.nnxdDecode(contentsOf) }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
@@ -395,7 +398,7 @@ extension NetworkView {
         networkConfig.name = contentsOf
             .deletingPathExtension()
             .lastPathComponent
-        networkConfig.epochsWanted = measuresCount
+        networkConfig.epochsWanted = epochsWanted
         networkConfig.miniBatchSize = miniBatchSize
         
         loader?(&network!, &measures)
