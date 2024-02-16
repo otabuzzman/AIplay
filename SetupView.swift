@@ -212,7 +212,7 @@ struct NetworkSetupView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Commit") {
-                        commit(compileNetworkConfig())
+                        commit(config)
                     }
                 }
             }
@@ -244,25 +244,13 @@ extension NetworkSetupView {
         return formatter
     }
     
-    private func compileLayerConfig() -> [LayerConfig] {
-        var layerConfig = [LayerConfig(
-            inputs: inputs.inputs,
-            punits: layers[0].punits,
-            f: layers[0].f,
-            tryOnGpu: layers[0].tryOnGpu)]
+    private var config: NetworkConfig {
+        var layers = [LayerConfig(inputs: inputs.inputs, punits: self.layers[0].punits, f: self.layers[0].f, tryOnGpu: self.layers[0].tryOnGpu)]
         for index in 1..<self.layers.count {
-            layerConfig.append(LayerConfig(
-                inputs: layerConfig[index - 1].punits,
-                punits: layers[index].punits,
-                f: layers[index].f,
-                tryOnGpu: layers[index].tryOnGpu))
+            layers.append(LayerConfig(inputs: layers[index - 1].punits, punits: self.layers[index].punits, f: self.layers[index].f, tryOnGpu: self.layers[index].tryOnGpu))
         }
-        return layerConfig
+        return NetworkConfig(name: name, epochsWanted: epochsWanted, miniBatchSize: miniBatchSize, alpha: alpha, inputs: inputs, layers: layers)
     }
-    
-    private func compileNetworkConfig() -> NetworkConfig {
-        NetworkConfig(name: name, epochsWanted: epochsWanted, miniBatchSize: miniBatchSize, alpha: alpha, inputs: inputs, layers: compileLayerConfig())
-    }    
 }
 
 extension Binding: Equatable where Value: Equatable {

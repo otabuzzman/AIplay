@@ -302,7 +302,8 @@ struct NetworkView: View {
             NetworkSetupView(isPresented: $showSetupView, networkConfig) { newConfig in
                 viewModel.network = GenericFactory.create(NetworkFactory(), newConfig)
                 setNetworkConfig(newConfig)
-                
+                epochsWanted = newConfig.epochsWanted
+                miniBatchSize = newConfig.miniBatchSize
                 showSetupView.toggle()
                 
                 if _isDebugAssertConfiguration() {
