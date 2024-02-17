@@ -232,7 +232,8 @@ struct NetworkView: View {
                         }
                         HStack {
                             Button {
-                                document = NetworkExchangeDocument(viewModel.nnxd.encode)
+                                guard let data = viewModel.nnxd?.encode else { return }
+                                document = NetworkExchangeDocument(data)
                                 isExporting = true
                             } label: {
                                 Label("Export model to Files", systemImage: "square.and.arrow.down")
@@ -271,13 +272,12 @@ struct NetworkView: View {
             switch result {
             case .success(let url):
                 let model = url[0]
-                do {
-                    let data = try Data(contentsOf: model)
-                    viewModel.nnxd = NNXD(from: data)
-                } catch {
-                    self.error = .nnxdRead(model, error)
-                }
-                var config = viewModel.nnxd.config
+                guard
+                    let data = try? Data(contentsOf: model),
+                    let nnxd = NNXD(from: data)
+                else { return }
+                viewModel.nnxd = nnxd
+                var config = nnxd.config
                 config.name = model.shortname
                 setNetworkConfig(config)
             case .failure(let error):
@@ -296,7 +296,8 @@ struct NetworkView: View {
         .sheet(isPresented: $showSetupView) {
             let networkConfig = getNetworkConfig() ?? .default
             NetworkSetupView(isPresented: $showSetupView, networkConfig) { newConfig in
-                viewModel.nnxd.config = newConfig
+                if viewModel.nnxd == nil { return }
+                viewModel.nnxd!.config = newConfig
                 setNetworkConfig(newConfig)
                 
                 showSetupView.toggle()
@@ -308,13 +309,12 @@ struct NetworkView: View {
         }
         .task {
             guard
-                let model = Bundle.main.url(forResource: NetworkConfig.default.name, withExtension: "nnxd")
+                let model = Bundle.main.url(forResource: NetworkConfig.default.name, withExtension: "nnxd"),
+                let data = try? Data(contentsOf: model),
+                let nnxd = NNXD(from: data)
             else { return }
-            do {
-                let data = try Data(contentsOf: model)
-                viewModel.nnxd = NNXD(from: data)
-            } catch { return }
-            var config = viewModel.nnxd.config
+            viewModel.nnxd = nnxd
+            var config = nnxd.config
             config.name = model.shortname
             setNetworkConfig(config)
         }

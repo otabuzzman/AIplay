@@ -148,21 +148,22 @@ func appInfo(isPresented: Binding<Bool>) -> some View {
 }
 
 internal func setAppFolder(url: URL) {
-    if let bookmark = try? url.bookmarkData(options: [/* .withSecurityScope */]) {
-        UserDefaults.standard.set(bookmark, forKey: "appFolder")
-    }
+    guard
+        let bookmark = try? url.bookmarkData(options: [/* .withSecurityScope */])
+    else { return }
+    UserDefaults.standard.set(bookmark, forKey: "appFolder")
 }
 
 internal func getAppFolder() -> URL? {
-    var appFolder: URL?
-    if let bookmark = UserDefaults.standard.object(forKey: "appFolder") as? Data {
-        var isStale = false
-        appFolder = try? URL(
+    var isStale = false
+    guard
+        let bookmark = UserDefaults.standard.object(forKey: "appFolder") as? Data,
+        let appFolder = try? URL(
             resolvingBookmarkData: bookmark,
             options: [/* .withSecurityScope */],
             bookmarkDataIsStale: &isStale)
-        if isStale { setAppFolder(url: appFolder!) }
-    }
+    else { return nil }
+    if isStale { setAppFolder(url: appFolder) }
     return appFolder
 }
 
