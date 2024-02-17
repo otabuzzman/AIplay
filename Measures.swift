@@ -33,7 +33,7 @@ extension Measures: CustomCoder {
         guard let trainingLossCount = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        if trainingLossCount == 0 {
+        if trainingLossCount > 0 {
             trainingLoss = [Float]()
             for _ in 0..<trainingLossCount {
                 guard let loss = Float(from: data) else { return nil }
