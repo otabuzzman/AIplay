@@ -366,7 +366,7 @@ extension NetworkConfig: CustomCoder {
 }
 
 struct LayerConfig: Identifiable, Hashable {
-    var id = UUID()
+    let id = UUID()
     var inputs: Int
     var punits: Int
     var f: ActivationFunction

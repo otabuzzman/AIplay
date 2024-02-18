@@ -236,7 +236,7 @@ extension NetworkSetupView {
 }
 
 extension NetworkSetupView {
-    static private var formatter: NumberFormatter {
+    private static var formatter: NumberFormatter {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
         formatter.decimalSeparator = "."

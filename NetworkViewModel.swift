@@ -38,6 +38,8 @@ extension NetworkView {
         }
         
         func train() async -> Void {
+            dataset.shuffle()
+            
             var measures = Measures()
             measures.trainingStartTime = Date.timeIntervalSinceReferenceDate
             
