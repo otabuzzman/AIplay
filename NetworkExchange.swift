@@ -67,71 +67,52 @@ extension UTType {
 }
 
 struct NNXD {
+    // controls
+    
+    // NNXD encoding starts here
     // header
-    let magic = "!NNXD"
-    let version = 2
+    static var magic = "!NNXD"
+    static var version = 2
     
     // section: hyper params
-    var epochsWanted: Int
     var miniBatchSize: Int
     
     // section: network
     var network: Network
     
     // section: measures
-    var measures: Array<Measures>
+    var measures: Array<Measures>?
 }
 
 extension NNXD {
     var config: NetworkConfig {
         get {
             var config = network.config
-            config.epochsWanted = epochsWanted
             config.miniBatchSize = miniBatchSize
             return config
         }
         set(config) {
             network = GenericFactory.create(NetworkFactory(), config)!
-            epochsWanted = config.epochsWanted
             miniBatchSize = config.miniBatchSize
         }
     }
 }
+
 extension NNXD: CustomCoder {
-    var encode: Data {
-        // header
-        var data = magic.data(using: .utf8)! // cannot use .encode here
-        data += version.encode
-        
-        // section: hyper params
-        data += epochsWanted.encode
-        data += miniBatchSize.encode
-        
-        // section: network
-        data += network.encode
-        
-        // section: measures
-        data += measures.count.encode
-        measures.forEach { data += $0.encode }
-        
-        return data
-    }
-    
     init?(from: Data) {
         var data = from
         
+        // NNXD header
         // check magic string... (cannot use .init? here)
-        guard let magic = String(data: data[..<magic.count], encoding: .utf8) else { return nil }
-        if magic != self.magic { return nil }
+        guard let magic = String(data: data[..<Self.magic.count], encoding: .utf8) else { return nil }
+        if magic != Self.magic { return nil }
         data = data.advanced(by: magic.count)
         // ...and version
         guard let version = Int(from: data) else { return nil }
-        if version != self.version { return nil }
+        if version != Self.version { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
         // section: hyper params
-        guard let epochsWanted = Int(from: data) else { return nil }
-        data = data.advanced(by: MemoryLayout<Int>.size)
         guard let miniBatchSize = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
@@ -146,17 +127,40 @@ extension NNXD: CustomCoder {
         guard let measuresCount = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        measures = [Measures]()
-        for _ in 0..<measuresCount {
-            guard let measureSize = Int(from: data) else { return nil }
-            data = data.advanced(by: MemoryLayout<Int>.size)
-            guard let element = Measures(from: data) else { return nil }
-            data = data.advanced(by: measureSize)
-            measures.append(element)
+        var measures: [Measures]?
+        if measuresCount > 0 {
+            measures = [Measures]()
+            for _ in 0..<measuresCount {
+                guard let measureSize = Int(from: data) else { return nil }
+                data = data.advanced(by: MemoryLayout<Int>.size)
+                guard let element = Measures(from: data) else { return nil }
+                data = data.advanced(by: measureSize)
+                measures!.append(element)
+            }
         }
         
-        self.epochsWanted = epochsWanted
-        self.miniBatchSize = miniBatchSize
-        self.network = network
+        self.init(miniBatchSize: miniBatchSize, network: network, measures: measures)
+    }
+    
+    var encode: Data {
+        // NNXD header
+        var data = Self.magic.data(using: .utf8)! // cannot use .encode here
+        data += Self.version.encode
+        
+        // section: hyper params
+        data += miniBatchSize.encode
+        
+        // section: network
+        data += network.encode
+        
+        // section: measures
+        if let measures = measures {
+            data += measures.count.encode
+            measures.forEach { data += $0.encode }
+        } else {
+            data += Int(0).encode
+        }
+        
+        return data
     }
 }

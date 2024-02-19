@@ -16,10 +16,6 @@ protocol CustomNumericCoder: CustomCoder where Self: ExpressibleByIntegerLiteral
 
 // https://stackoverflow.com/a/38024025
 extension CustomNumericCoder {
-    var encode: Data {
-        withUnsafeBytes(of: self.bigEndian) { Data($0) }
-    }
-    
     init?(from: Data) {
         guard
             from.count >= MemoryLayout<Self>.size
@@ -29,6 +25,10 @@ extension CustomNumericCoder {
             from.copyBytes(to: $0, count: MemoryLayout<Self>.size)
         }
         self = value.bigEndian
+    }
+    
+    var encode: Data {
+        withUnsafeBytes(of: self.bigEndian) { Data($0) }
     }
 }
 
@@ -56,22 +56,22 @@ protocol CustomStringDecoder {
 typealias CustomStringCoder = CustomEncoder & CustomStringDecoder
 
 extension String: CustomStringCoder {
-    var encode: Data {
-        self.utf8.count.encode + self.utf8
-    }
-    
     init?(from: Data, bytes: Int) {
         self.init(data: from[..<bytes], encoding: .utf8)
+    }
+
+    var encode: Data {
+        self.utf8.count.encode + self.utf8
     }
 }
 
 extension Bool: CustomCoder {
-    var encode: Data {
-        Data(UInt8(self ? 1 : 0).encode)
-    }
-    
     init?(from: Data) {
         guard let value = UInt8(from: from) else { return nil }
         self.init(value == 1)
+    }
+
+    var encode: Data {
+        Data(UInt8(self ? 1 : 0).encode)
     }
 }

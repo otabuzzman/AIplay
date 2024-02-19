@@ -20,6 +20,7 @@ struct NetworkView: View {
     
     @State private var showResultDetails = false
     
+    @State private var epochsWanted = 0
     @State private var epochsTrained = 0    
     @State private var batchesTrained = 0
     @State private var validationAccuracy: Float?
@@ -277,6 +278,9 @@ struct NetworkView: View {
                     let nnxd = NNXD(from: data)
                 else { return }
                 viewModel.nnxd = nnxd
+                // set controls
+                epochsWanted = nnxd.measures?.count ?? 0
+                // set NNXD config
                 var config = nnxd.config
                 config.name = model.shortname
                 setNetworkConfig(config)
@@ -295,10 +299,13 @@ struct NetworkView: View {
         }
         .sheet(isPresented: $showSetupView) {
             let networkConfig = getNetworkConfig() ?? .default
-            NetworkSetupView(isPresented: $showSetupView, networkConfig) { newConfig in
+            NetworkSetupView(isPresented: $showSetupView, epochsWanted: $epochsWanted, networkConfig) { newConfig in
                 if viewModel.nnxd == nil { return }
+                // set new NNXD config
                 viewModel.nnxd!.config = newConfig
                 setNetworkConfig(newConfig)
+                // clear existing measures
+                viewModel.nnxd!.measures = nil
                 
                 showSetupView.toggle()
                 
@@ -314,6 +321,9 @@ struct NetworkView: View {
                 let nnxd = NNXD(from: data)
             else { return }
             viewModel.nnxd = nnxd
+            // set controls
+            epochsWanted = nnxd.measures?.count ?? 0
+            // set NNXD config
             var config = nnxd.config
             config.name = model.shortname
             setNetworkConfig(config)

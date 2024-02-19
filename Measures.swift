@@ -33,19 +33,17 @@ extension Measures: CustomCoder {
         guard let trainingLossCount = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
+        var trainingLoss: [Float]?
         if trainingLossCount > 0 {
             trainingLoss = [Float]()
             for _ in 0..<trainingLossCount {
                 guard let loss = Float(from: data) else { return nil }
                 data = data.advanced(by: MemoryLayout<Float>.size)
-                trainingLoss?.append(loss)
+                trainingLoss!.append(loss)
             }
         }
         
-        self.trainingStartTime = trainingStartTime
-        self.trainingDuration = trainingDuration
-        self.trainingAccuracy = trainingAccuracy
-        self.validationAccuracy = validationAccuracy
+        self.init(trainingStartTime: trainingStartTime, trainingDuration: trainingDuration, trainingAccuracy: trainingAccuracy, validationAccuracy: validationAccuracy, trainingLoss: trainingLoss)
     }
     
     var encode: Data {

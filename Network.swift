@@ -123,7 +123,7 @@ extension Network {
             other.append(layers[index].config)
         }
         let input = LayerConfig(inputs: other[0].inputs, punits: 0, f: .identity, tryOnGpu: false)
-        return NetworkConfig(name: "", epochsWanted: -1, miniBatchSize: -1,
+        return NetworkConfig(name: "", miniBatchSize: -1,
                              alpha: alpha, inputs: input, layers: other)
     }
 }
@@ -296,7 +296,6 @@ extension ActivationFunction {
 
 struct NetworkConfig {
     var name: String
-    var epochsWanted: Int
     var miniBatchSize: Int
     var alpha: Float
     var inputs: LayerConfig
@@ -305,7 +304,7 @@ struct NetworkConfig {
 
 extension NetworkConfig: CustomStringConvertible {
     var description: String {
-        "NetworkConfig(name: \(name), epochsWanted: \(epochsWanted), miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers))"
+        "NetworkConfig(name: \(name), miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers))"
     }
 }
 
@@ -317,9 +316,6 @@ extension NetworkConfig: CustomCoder {
         data = data.advanced(by: MemoryLayout<Int>.size)
         guard let name = String(data: data[..<nameSize], encoding: .utf8) else { return nil }
         data = data.advanced(by: nameSize)
-        
-        guard let epochsWanted = Int(from: data) else { return nil }
-        data = data.advanced(by: MemoryLayout<Int>.size)
         
         guard let miniBatchSize = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
@@ -335,7 +331,7 @@ extension NetworkConfig: CustomCoder {
         guard let layerConfigCount = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        layers = [LayerConfig]()
+        var layers = [LayerConfig]()
         for _ in 0..<layerConfigCount {
             guard let layerConfigSize = Int(from: data) else { return nil }
             data = data.advanced(by: MemoryLayout<Int>.size)
@@ -343,19 +339,13 @@ extension NetworkConfig: CustomCoder {
             data = data.advanced(by: layerConfigSize)
             layers.append(layerConfig)
         }
-        
-        self.name = name
-        self.epochsWanted = epochsWanted
-        self.miniBatchSize = miniBatchSize
-        self.alpha = alpha
-        self.inputs = inputs
+        self.init(name: name, miniBatchSize: miniBatchSize, alpha: alpha, inputs: inputs, layers: layers)
     }
     
     var encode: Data {
         let utf8 = name.utf8
         var data = utf8.count.encode
         data += utf8
-        data += epochsWanted.encode
         data += miniBatchSize.encode
         data += alpha.encode
         data += inputs.encode
@@ -395,10 +385,7 @@ extension LayerConfig: CustomCoder {
         
         guard let tryOnGpu = Bool(from: data) else { return nil }
         
-        self.inputs = inputs
-        self.punits = punits
-        self.f = f
-        self.tryOnGpu = tryOnGpu
+        self.init(inputs: inputs, punits: punits, f: f, tryOnGpu: tryOnGpu)
     }
     
     var encode: Data {

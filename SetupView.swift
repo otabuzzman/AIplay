@@ -82,7 +82,8 @@ struct NetworkSetupView: View {
     private let commit: (NetworkConfig) -> Void
     
     @State private var name: String
-    @State private var epochsWanted: Int
+    @Binding private var epochsWanted: Int
+    
     @State private var miniBatchSize: Int
     @State private var alpha: Float
     @State private var inputs: LayerConfig
@@ -104,8 +105,6 @@ struct NetworkSetupView: View {
                         Text(".nnxd")
                             .foregroundStyle(.gray)
                     }
-                }
-                Section {
                     HStack {
                         Text("Epochs wanted")
                         Spacer()
@@ -114,6 +113,8 @@ struct NetworkSetupView: View {
                             .keyboardType(.numberPad)
                             .frame(width: 96)
                     }
+                }
+                Section {
                     HStack {
                         Text("Mini-batch size")
                         Spacer()
@@ -221,11 +222,12 @@ struct NetworkSetupView: View {
 }
 
 extension NetworkSetupView {
-    init(isPresented: Binding<Bool>, _ config: NetworkConfig, commit: @escaping (NetworkConfig) -> Void) {
+    init(isPresented: Binding<Bool>, epochsWanted: Binding<Int>, _ config: NetworkConfig, commit: @escaping (NetworkConfig) -> Void) {
         _isPresented = isPresented
         
         _name = State(initialValue: config.name)
-        _epochsWanted = State(initialValue: config.epochsWanted)
+        _epochsWanted = epochsWanted
+        
         _miniBatchSize = State(initialValue: config.miniBatchSize)
         _alpha = State(initialValue: config.alpha)
         _inputs = State(initialValue: config.inputs)
@@ -249,7 +251,7 @@ extension NetworkSetupView {
         for index in 1..<self.layers.count {
             layers.append(LayerConfig(inputs: layers[index - 1].punits, punits: self.layers[index].punits, f: self.layers[index].f, tryOnGpu: self.layers[index].tryOnGpu))
         }
-        return NetworkConfig(name: name, epochsWanted: epochsWanted, miniBatchSize: miniBatchSize, alpha: alpha, inputs: inputs, layers: layers)
+        return NetworkConfig(name: name, miniBatchSize: miniBatchSize, alpha: alpha, inputs: inputs, layers: layers)
     }
 }
 

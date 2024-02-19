@@ -245,7 +245,7 @@ extension NetworkConfig {
     //   usage: GenericFactory.create(NetworkFactory(), .myonn)
     static let myonn = Self(
         name: "default-model",
-        epochsWanted: 7, miniBatchSize: 30, alpha: 0.3,
+        miniBatchSize: 30, alpha: 0.3,
         inputs: LayerConfig(inputs: 784, punits: 0, f: .identity, tryOnGpu: false),
         layers: [
             LayerConfig(inputs: 784, punits: 100, f: .sigmoid, tryOnGpu: false),

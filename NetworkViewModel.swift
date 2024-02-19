@@ -64,7 +64,7 @@ extension NetworkView {
             measures.validationAccuracy = await query(subset: .test)
             
             measures.trainingDuration = Date.timeIntervalSinceReferenceDate - measures.trainingStartTime
-            nnxd.measures.append(measures)
+            nnxd.measures?.append(measures)
             
             if _isDebugAssertConfiguration() {
                 let _ = print(measures)
