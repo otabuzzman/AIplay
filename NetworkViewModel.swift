@@ -2,10 +2,16 @@ import SwiftUI
 
 extension NetworkView {
     class NetworkViewModel: ObservableObject {
-        var nnxd: NNXD!
+        var nnxd: NNXD
         private(set) var dataset = MNISTViewModel()
         
         @Published var progress: Float = 0 // 0...1
+        
+        init() {
+            let name = NetworkConfig.default.name
+            nnxd = Bundle.nnxd(name: name)!
+            setNetworkConfig(.default)
+        }
         
         func query(subset: MNISTSubset.Purpose = .test) async -> Float {
             let samples = dataset.count(in: subset)
@@ -44,13 +50,24 @@ extension NetworkView {
             measures.trainingStartTime = Date.timeIntervalSinceReferenceDate
             
             let batches = dataset.count(in: .train) / nnxd.miniBatchSize
-            measures.trainingLoss = .init(repeating: 0, count: batches)
+            measures.trainingLoss = .init(repeating: 0, count: 1000)
+            
+            let measureInterval = batches > 1000 ? batches / 1000 : 1
             
             for batch in 0..<batches {
                 let start = batch * nnxd.miniBatchSize
                 let end = start + nnxd.miniBatchSize
-                let cost = await train(batch: start..<end)
-                measures.trainingLoss?[batch] = cost
+                
+                var cost: Float
+                if nnxd.miniBatchSize == 1 {
+                    cost = await train(image: batch)
+                } else {
+                    cost = await train(batch: start..<end)
+                }
+                
+                if batch % measureInterval == 0 {
+                    measures.trainingLoss?[batch / measureInterval] = cost
+                }
                 
                 let current = Float(batch) / Float(batches)
                 advanceProgress(current)
@@ -91,6 +108,17 @@ extension NetworkView {
                 progress = current
             }
         }
+    }
+}
+
+extension Bundle {
+    static func nnxd(name: String) -> NNXD? {
+        guard
+            let model = Self.main.url(forResource: name, withExtension: "nnxd"),
+            let data = try? Data(contentsOf: model),
+            let nnxd = NNXD(from: data)
+        else { return nil }
+        return nnxd
     }
 }
 

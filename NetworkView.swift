@@ -1,4 +1,5 @@
 import SwiftUI
+import Charts
 import PencilKit
 
 struct NetworkView: View {
@@ -156,10 +157,17 @@ struct NetworkView: View {
                         Text("Statistics...")
                         Spacer()
                     }
+                    if let trainingLoss = viewModel.nnxd.measures?[0].trainingLoss {
+                        Chart {
+                            ForEach(0..<trainingLoss.count, id: \.self) { index in
+                                LineMark(x: .value("x", index), y: .value("y", trainingLoss[index]))
+                            }
+                        }
+                    }
                 } header: {
                     HStack {
-                        Label("NN TRAINING", systemImage: "dumbbell").font(.headline)
-                        Spacer()
+                        Label("NN TRAIN!NG", systemImage: "dumbbell").font(.headline)
+                      Spacer()
                         Button {
                             showSetupView.toggle()
                         } label: {
@@ -233,7 +241,7 @@ struct NetworkView: View {
                         }
                         HStack {
                             Button {
-                                guard let data = viewModel.nnxd?.encode else { return }
+                                let data = viewModel.nnxd.encode
                                 document = NetworkExchangeDocument(data)
                                 isExporting = true
                             } label: {
@@ -278,11 +286,9 @@ struct NetworkView: View {
                     let nnxd = NNXD(from: data)
                 else { return }
                 viewModel.nnxd = nnxd
-                // set controls
-                epochsWanted = nnxd.measures?.count ?? 0
-                // set NNXD config
+                // update NNXD config
                 var config = nnxd.config
-                config.name = model.shortname
+                config.name = model.basename
                 setNetworkConfig(config)
             case .failure(let error):
                 self.error = .nnxdLoad(error)
@@ -300,12 +306,10 @@ struct NetworkView: View {
         .sheet(isPresented: $showSetupView) {
             let networkConfig = getNetworkConfig() ?? .default
             NetworkSetupView(isPresented: $showSetupView, epochsWanted: $epochsWanted, networkConfig) { newConfig in
-                if viewModel.nnxd == nil { return }
                 // set new NNXD config
-                viewModel.nnxd!.config = newConfig
+                guard let nnxd = NNXD(config: newConfig) else { return }
+                viewModel.nnxd = nnxd
                 setNetworkConfig(newConfig)
-                // clear existing measures
-                viewModel.nnxd!.measures = nil
                 
                 showSetupView.toggle()
                 
@@ -313,20 +317,6 @@ struct NetworkView: View {
                     let _ = print(newConfig)
                 }
             }
-        }
-        .task {
-            guard
-                let model = Bundle.main.url(forResource: NetworkConfig.default.name, withExtension: "nnxd"),
-                let data = try? Data(contentsOf: model),
-                let nnxd = NNXD(from: data)
-            else { return }
-            viewModel.nnxd = nnxd
-            // set controls
-            epochsWanted = nnxd.measures?.count ?? 0
-            // set NNXD config
-            var config = nnxd.config
-            config.name = model.shortname
-            setNetworkConfig(config)
         }
     }
 }
@@ -381,7 +371,7 @@ struct MSwitch<T: View, U: View>: View {
 }
 
 extension URL {
-    var shortname: String {
+    var basename: String {
         self.deletingPathExtension().lastPathComponent
     }
 }

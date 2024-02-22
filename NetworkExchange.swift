@@ -67,9 +67,6 @@ extension UTType {
 }
 
 struct NNXD {
-    // controls
-    
-    // NNXD encoding starts here
     // header
     static var magic = "!NNXD"
     static var version = 2
@@ -86,15 +83,20 @@ struct NNXD {
 
 extension NNXD {
     var config: NetworkConfig {
-        get {
-            var config = network.config
-            config.miniBatchSize = miniBatchSize
-            return config
-        }
-        set(config) {
-            network = GenericFactory.create(NetworkFactory(), config)!
-            miniBatchSize = config.miniBatchSize
-        }
+        var config = network.config
+        config.miniBatchSize = miniBatchSize
+        return config
+    }
+}
+
+extension NNXD {
+    init?(config: NetworkConfig) {
+        guard
+            let network = GenericFactory.create(NetworkFactory(), config)
+        else { return nil }
+        self.network = network
+        miniBatchSize = config.miniBatchSize
+        measures = nil
     }
 }
 
