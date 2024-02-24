@@ -78,7 +78,7 @@ struct NNXD {
     var network: Network
     
     // section: measures
-    var measures: Array<Measures>?
+    var measures: Array<Measures>
 }
 
 extension NNXD {
@@ -96,7 +96,7 @@ extension NNXD {
         else { return nil }
         self.network = network
         miniBatchSize = config.miniBatchSize
-        measures = nil
+        measures = Array<Measures>()
     }
 }
 
@@ -129,16 +129,13 @@ extension NNXD: CustomCoder {
         guard let measuresCount = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        var measures: [Measures]?
-        if measuresCount > 0 {
-            measures = [Measures]()
-            for _ in 0..<measuresCount {
-                guard let measureSize = Int(from: data) else { return nil }
-                data = data.advanced(by: MemoryLayout<Int>.size)
-                guard let element = Measures(from: data) else { return nil }
-                data = data.advanced(by: measureSize)
-                measures!.append(element)
-            }
+        var measures = Array<Measures>()
+        for _ in 0..<measuresCount {
+            guard let measureSize = Int(from: data) else { return nil }
+            data = data.advanced(by: MemoryLayout<Int>.size)
+            guard let element = Measures(from: data) else { return nil }
+            data = data.advanced(by: measureSize)
+            measures.append(element)
         }
         
         self.init(miniBatchSize: miniBatchSize, network: network, measures: measures)
@@ -156,12 +153,8 @@ extension NNXD: CustomCoder {
         data += network.encode
         
         // section: measures
-        if let measures = measures {
-            data += measures.count.encode
-            measures.forEach { data += $0.encode }
-        } else {
-            data += Int(0).encode
-        }
+        data += measures.count.encode
+        measures.forEach { data += $0.encode }
         
         return data
     }

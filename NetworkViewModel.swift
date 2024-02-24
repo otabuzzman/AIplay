@@ -8,8 +8,7 @@ extension NetworkView {
         @Published var progress: Float = 0 // 0...1
         
         init() {
-            let name = NetworkConfig.default.name
-            nnxd = Bundle.nnxd(name: name)!
+            nnxd = Bundle.nnxd(name: "default-model")!
             setNetworkConfig(.default)
         }
         
@@ -81,7 +80,7 @@ extension NetworkView {
             measures.validationAccuracy = await query(subset: .test)
             
             measures.trainingDuration = Date.timeIntervalSinceReferenceDate - measures.trainingStartTime
-            nnxd.measures?.append(measures)
+            nnxd.measures.append(measures)
             
             if _isDebugAssertConfiguration() {
                 let _ = print(measures)

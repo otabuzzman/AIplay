@@ -5,29 +5,25 @@ extension ActivationFunction: Identifiable {
 }
 
 struct LayerSetupView: View {
-    @Binding private var path: NavigationPath // pop to root. not used, but kept it anyway
-    private var commit: (LayerConfig) -> Void
-    
-    @State private var inputs: Int
-    @State private var punits: Int
-    @State private var f: ActivationFunction
-    @State private var tryOnGpu: Bool
-    
+    @Binding var path: NavigationPath // pop to root. not used, but kept it anyway
+    @State var config: LayerConfig
+    var commit: (LayerConfig) -> Void
+        
     var body: some View {
         Form {
             Section {
                 HStack {
                     Text("Layer type")
                     Spacer()
-                    Text(punits == 0 ? "Input" : "Fully connected")
+                    Text(config.punits == 0 ? "Input" : "Fully connected")
                         .foregroundStyle(.secondary)
                 }
-                switch punits {
+                switch config.punits {
                 case 0:
                     HStack {
                         Text("Input nodes")
                         Spacer()
-                        TextField("number", value: $inputs, format: .number)
+                        TextField("number", value: $config.inputs, format: .number)
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
                             .frame(width: 96)
@@ -36,58 +32,40 @@ struct LayerSetupView: View {
                     HStack {
                         Text("Processing nodes")
                         Spacer()
-                        TextField("number", value: $punits, format: .number)
+                        TextField("number", value: $config.punits, format: .number)
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
                             .frame(width: 96)
                     }
-                    Picker("Activation function", selection: $f) {
+                    Picker("Activation function", selection: $config.f) {
                         ForEach(ActivationFunction.allCases) { f in
                             Text("\(f.description)")
                         }
                     }
                     .pickerStyle(.navigationLink)
-                    Toggle(isOn: $tryOnGpu, label: {
+                    Toggle(isOn: $config.tryOnGpu, label: {
                         Text("Activation uses GPU")
                     })
                 }
             } header: {
-                Text(inputs == 1 && punits == 1 ? "ADD LAYER" : "LAYER SETUP")
+                Text(config.inputs == 1 && config.punits == 1 ? "ADD LAYER" : "LAYER SETUP")
             }
         }
         .toolbar { 
             Button("Commit") {
-                commit(LayerConfig(inputs: inputs, punits: punits, f: f, tryOnGpu: tryOnGpu))
+                commit(config)
                 path = NavigationPath()
             }
         }
     }
 }
 
-extension LayerSetupView {
-    init(path: Binding<NavigationPath>, _ config: LayerConfig, commit: @escaping (LayerConfig) -> Void) {
-        _path = path
-        
-        _inputs = State(initialValue: config.inputs)
-        _punits = State(initialValue: config.punits)
-        _f = State(initialValue: config.f)
-        _tryOnGpu = State(initialValue: config.tryOnGpu)
-        
-        self.commit = commit
-    }
-}
-
 struct NetworkSetupView: View {
-    @Binding private var isPresented: Bool
-    private let commit: (NetworkConfig) -> Void
-    
-    @State private var name: String
-    @Binding private var epochsWanted: Int
-    
-    @State private var miniBatchSize: Int
-    @State private var alpha: Float
-    @State private var inputs: LayerConfig
-    @State private var layers: [LayerConfig]
+    @Binding var isPresented: Bool
+    @Binding var name: String
+    @Binding var epochsWanted: Int
+    @State var config: NetworkConfig
+    var commit: (NetworkConfig) -> Void
     
     @State private var path = NavigationPath()
     
@@ -118,7 +96,7 @@ struct NetworkSetupView: View {
                     HStack {
                         Text("Mini-batch size")
                         Spacer()
-                        TextField("number", value: $miniBatchSize, format: .number)
+                        TextField("number", value: $config.miniBatchSize, format: .number)
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.numberPad)
                             .frame(width: 96)
@@ -126,7 +104,7 @@ struct NetworkSetupView: View {
                     HStack {
                         Text("Learning rate")
                         Spacer()
-                        TextField("float", value: $alpha, formatter: Self.formatter)
+                        TextField("float", value: $config.alpha, formatter: Self.formatter)
                             .multilineTextAlignment(.trailing)
                             .keyboardType(.decimalPad)
                             .frame(width: 96)
@@ -136,11 +114,11 @@ struct NetworkSetupView: View {
                         .font(.subheadline)
                 }
                 Section {
-                    NavigationLink(value: inputs) {
+                    NavigationLink(value: config.inputs) {
                         HStack {
                             Text("Inputs")
                             Spacer()
-                            Text("\(inputs.inputs)")
+                            Text("\(config.inputs.inputs)")
                             Image(systemName: "line.horizontal.3")
                                 .foregroundColor(.clear)
                         }
@@ -148,7 +126,7 @@ struct NetworkSetupView: View {
                     List {
                         // laggy list item move when using array indices instead of State
                         // https://www.reddit.com/r/SwiftUI/comments/16aytl4/comment/jzak15t
-                        ForEach($layers) { layer in
+                        ForEach($config.layers) { layer in
                             // how to use value of type Binding
                             // https://stackoverflow.com/a/72584743
                             NavigationLink(value: layer) {
@@ -161,11 +139,11 @@ struct NetworkSetupView: View {
                                 }
                             }
                         }
-                        .onDelete(perform: layers.count > 1 ? { indices in
-                            layers.remove(atOffsets: indices)
+                        .onDelete(perform: config.layers.count > 1 ? { indices in
+                            config.layers.remove(atOffsets: indices)
                         } : nil)
-                        .onMove(perform: layers.count > 1 ? { indices, offset in
-                            layers.move(fromOffsets: indices, toOffset: offset)
+                        .onMove(perform: config.layers.count > 1 ? { indices, offset in
+                            config.layers.move(fromOffsets: indices, toOffset: offset)
                         } : nil)
                     }
                 } header: {
@@ -193,15 +171,19 @@ struct NetworkSetupView: View {
             .navigationDestination(for: LayerConfig.self) { config in 
                 switch config.punits {
                 case 0: // input layer
-                    LayerSetupView(path: $path, config, commit: { newConfig in inputs = newConfig })
+                    LayerSetupView(path: $path, config: config) { newConfig in
+                        self.config.inputs = newConfig
+                    }
                 case -1: // add layer
-                    LayerSetupView(path: $path, config, commit: { newConfig in layers.append(newConfig) })
+                    LayerSetupView(path: $path, config: config) { newConfig in
+                        self.config.layers.append(newConfig)
+                    }
                 default:
                     EmptyView()
                 }
             }
             .navigationDestination(for: Binding<LayerConfig>.self) { config in 
-                LayerSetupView(path: $path, config.wrappedValue) { newConfig in 
+                LayerSetupView(path: $path, config: config.wrappedValue) { newConfig in 
                     config.wrappedValue = newConfig
                 }
             }
@@ -213,27 +195,11 @@ struct NetworkSetupView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Commit") {
-                        commit(config)
+                        commit(compile)
                     }
                 }
             }
         }
-    }
-}
-
-extension NetworkSetupView {
-    init(isPresented: Binding<Bool>, epochsWanted: Binding<Int>, _ config: NetworkConfig, commit: @escaping (NetworkConfig) -> Void) {
-        _isPresented = isPresented
-        
-        _name = State(initialValue: config.name)
-        _epochsWanted = epochsWanted
-        
-        _miniBatchSize = State(initialValue: config.miniBatchSize)
-        _alpha = State(initialValue: config.alpha)
-        _inputs = State(initialValue: config.inputs)
-        _layers = State(initialValue: config.layers)
-        
-        self.commit = commit
     }
 }
 
@@ -246,12 +212,16 @@ extension NetworkSetupView {
         return formatter
     }
     
-    private var config: NetworkConfig {
-        var layers = [LayerConfig(inputs: inputs.inputs, punits: self.layers[0].punits, f: self.layers[0].f, tryOnGpu: self.layers[0].tryOnGpu)]
-        for index in 1..<self.layers.count {
-            layers.append(LayerConfig(inputs: layers[index - 1].punits, punits: self.layers[index].punits, f: self.layers[index].f, tryOnGpu: self.layers[index].tryOnGpu))
+    private var compile: NetworkConfig {
+        var inputs = config.layers[0]
+        inputs.inputs = config.inputs.inputs
+        var layers = [inputs]
+        for index in 1..<config.layers.count {
+            var layer = config.layers[index]
+            layer.inputs = config.layers[index - 1].punits
+            layers.append(layer)
         }
-        return NetworkConfig(name: name, miniBatchSize: miniBatchSize, alpha: alpha, inputs: inputs, layers: layers)
+        return NetworkConfig(miniBatchSize: config.miniBatchSize, alpha: config.alpha, inputs: config.inputs, layers: layers)
     }
 }
 

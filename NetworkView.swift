@@ -4,6 +4,7 @@ import PencilKit
 
 struct NetworkView: View {
     @ObservedObject private var viewModel = NetworkViewModel()
+    @State private var currentConfigName = "default-model"
     
     @State private var longRunTask: Task<Void, Never>?
     @State private var longRunBusy = false
@@ -157,7 +158,7 @@ struct NetworkView: View {
                         Text("Statistics...")
                         Spacer()
                     }
-                    if let trainingLoss = viewModel.nnxd.measures?[0].trainingLoss {
+                    if viewModel.nnxd.measures.count > 0, let trainingLoss = viewModel.nnxd.measures[0].trainingLoss {
                         Chart {
                             ForEach(0..<trainingLoss.count, id: \.self) { index in
                                 LineMark(x: .value("x", index), y: .value("y", trainingLoss[index]))
@@ -256,6 +257,7 @@ struct NetworkView: View {
                         Spacer()
                         Button("Reset", role: .destructive) {
                             Task { @MainActor in
+                                currentConfigName = ""
                                 longRunTask?.cancel()
                                 let _ = await longRunTask?.value
                                 
@@ -287,15 +289,14 @@ struct NetworkView: View {
                 else { return }
                 viewModel.nnxd = nnxd
                 // update NNXD config
-                var config = nnxd.config
-                config.name = model.basename
-                setNetworkConfig(config)
+                setNetworkConfig(nnxd.config)
+                currentConfigName = model.basename
             case .failure(let error):
                 self.error = .nnxdLoad(error)
             }
         }
         // modifier attached to Button reopens system interface on pressing return and hide keys
-        .fileExporter(isPresented: $isExporting, document: document, contentType: .nnxd, defaultFilename: getNetworkConfig()?.name ?? "Untitled") { result in
+        .fileExporter(isPresented: $isExporting, document: document, contentType: .nnxd, defaultFilename: currentConfigName) { result in
             switch result {
             case .success:
                 break
@@ -305,10 +306,13 @@ struct NetworkView: View {
         }
         .sheet(isPresented: $showSetupView) {
             let networkConfig = getNetworkConfig() ?? .default
-            NetworkSetupView(isPresented: $showSetupView, epochsWanted: $epochsWanted, networkConfig) { newConfig in
-                // set new NNXD config
-                guard let nnxd = NNXD(config: newConfig) else { return }
+            NetworkSetupView(isPresented: $showSetupView, name: $currentConfigName, epochsWanted: $epochsWanted, config: networkConfig) { newConfig in
+                // set new NNXD from config
+                guard
+                    let nnxd = NNXD(config: newConfig)
+                else { return }
                 viewModel.nnxd = nnxd
+                // update NNXD config
                 setNetworkConfig(newConfig)
                 
                 showSetupView.toggle()

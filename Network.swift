@@ -123,8 +123,7 @@ extension Network {
             other.append(layers[index].config)
         }
         let input = LayerConfig(inputs: other[0].inputs, punits: 0, f: .identity, tryOnGpu: false)
-        return NetworkConfig(name: "", miniBatchSize: -1,
-                             alpha: alpha, inputs: input, layers: other)
+        return NetworkConfig(miniBatchSize: -1, alpha: alpha, inputs: input, layers: other)
     }
 }
 
@@ -295,7 +294,6 @@ extension ActivationFunction {
 }
 
 struct NetworkConfig {
-    var name: String
     var miniBatchSize: Int
     var alpha: Float
     var inputs: LayerConfig
@@ -304,18 +302,13 @@ struct NetworkConfig {
 
 extension NetworkConfig: CustomStringConvertible {
     var description: String {
-        "NetworkConfig(name: \(name), miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers))"
+        "NetworkConfig(miniBatchSize: \(miniBatchSize), alpha: \(alpha), inputs: \(inputs.inputs), layers: \(layers))"
     }
 }
 
 extension NetworkConfig: CustomCoder {
     init?(from: Data) {
         var data = from
-        
-        guard let nameSize = Int(from: data) else { return nil }
-        data = data.advanced(by: MemoryLayout<Int>.size)
-        guard let name = String(data: data[..<nameSize], encoding: .utf8) else { return nil }
-        data = data.advanced(by: nameSize)
         
         guard let miniBatchSize = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
@@ -339,14 +332,12 @@ extension NetworkConfig: CustomCoder {
             data = data.advanced(by: layerConfigSize)
             layers.append(layerConfig)
         }
-        self.init(name: name, miniBatchSize: miniBatchSize, alpha: alpha, inputs: inputs, layers: layers)
+        
+        self.init(miniBatchSize: miniBatchSize, alpha: alpha, inputs: inputs, layers: layers)
     }
     
     var encode: Data {
-        let utf8 = name.utf8
-        var data = utf8.count.encode
-        data += utf8
-        data += miniBatchSize.encode
+        var data = miniBatchSize.encode
         data += alpha.encode
         data += inputs.encode
         data += layers.count.encode

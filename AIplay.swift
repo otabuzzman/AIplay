@@ -244,7 +244,6 @@ extension NetworkConfig {
     // NYONN sample configuration
     //   usage: GenericFactory.create(NetworkFactory(), .myonn)
     static let myonn = Self(
-        name: "default-model",
         miniBatchSize: 30, alpha: 0.3,
         inputs: LayerConfig(inputs: 784, punits: 0, f: .identity, tryOnGpu: false),
         layers: [

@@ -5,7 +5,7 @@ struct Measures {
     var trainingDuration: TimeInterval = 0
     var trainingAccuracy: Float = 0
     var validationAccuracy: Float = 0
-    var trainingLoss: [Float]?
+    var trainingLoss: Array<Float>?
 }
 
 extension Measures: CustomStringConvertible {
