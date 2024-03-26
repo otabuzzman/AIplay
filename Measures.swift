@@ -1,6 +1,6 @@
 import Foundation
 
-struct Measures {
+struct Measures: Hashable {
     var trainingStartTime: TimeInterval = 0
     var trainingDuration: TimeInterval = 0
     var trainingAccuracy: Float = 0

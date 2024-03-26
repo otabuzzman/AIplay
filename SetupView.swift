@@ -1,6 +1,6 @@
 import SwiftUI
 
-extension ActivationFunction: Identifiable {
+extension Activation: Identifiable {
     var id: Self { self }
 }
 
@@ -38,7 +38,7 @@ struct LayerSetupView: View {
                             .frame(width: 96)
                     }
                     Picker("Activation function", selection: $config.f) {
-                        ForEach(ActivationFunction.allCases) { f in
+                        ForEach(Activation.allCases) { f in
                             Text("\(f.description)")
                         }
                     }

@@ -29,10 +29,11 @@ struct Network {
         return O.last! // network's output layer O
     }
     
-    func loss(for I: Matrix<Float>, with T: Matrix<Float>) -> Float {
-        let E = T - query(for: I)
-        let loss = E.entries.map { v in pow(v, 2) }.reduce(0, +)
-        return loss
+    func loss(for I: Matrix<Float>, with T: Matrix<Float>) -> (Float, Matrix<Float>) {
+        let O = query(for: I)
+        let E = T - O
+        let loss = E.entries.map { v in 0.5 * pow(v, 2) }.reduce(0, +)
+        return (loss, O)
     }
     
     func cost(for I: [Matrix<Float>], with T: [Matrix<Float>]) async -> Float {
@@ -40,7 +41,7 @@ struct Network {
         var C = E.map { v in pow(v, 2) }
         for index in 1..<I.count {
             let e = T[index] - query(for: I[index])
-            C = (C + e.map { v in pow(v, 2) }) / 2
+            C = (C + e.map { v in 0.5 * pow(v, 2) }) / 2
             E = (E + e) / 2
         }
         let cost = C.entries.reduce(0, +)
@@ -54,7 +55,7 @@ struct Network {
         // network error at output layer O as difference of T - O
         var E = T - query(for: I, &O)
         // training loss (MSE L2)
-        let loss = E.entries.map { v in pow(v, 2) }.reduce(0, +)
+        let loss = E.entries.map { v in 0.5 * pow(v, 2) }.reduce(0, +)
         // back propagate error and update weights layer by layer in reverse order
         for layer in (0..<layers.count).reversed() {
             /*
@@ -78,9 +79,9 @@ struct Network {
         // mean network error for batch
         var E = T[0] - O.last!
         // training cost (mean loss (MSE L2) of batch)
-        var C = E.map { v in pow(v, 2) }
-        // mean network gradient for batch
-        var G = layers.last!.gradient(for: O.lastButOne!, O.last!, E)
+        var C = E.map { v in 0.5 * pow(v, 2) }
+        // mean network delta (sort of gradient) for batch
+        var D = layers.last!.delta(for: E, O.lastButOne!, O.last!)
         // process batch inputs except first
         for index in 1..<I.count {
             // layer outputs for this input
@@ -91,16 +92,16 @@ struct Network {
             // network error for this input
             let e = T[index] - o.last!
             // update cost
-            C = (C + e.map { v in pow(v, 2) }) / 2
+            C = (C + e.map { v in 0.5 * pow(v, 2) }) / 2
             // update mean error in E
             E = (E + e) / 2
-            // network gradient for this input
-            let g = layers.last!.gradient(for: o.lastButOne!, o.last!, e)
-            // update mean gradient in G
-            G = (G + g) / 2
+            // network delta for this input
+            let d = layers.last!.delta(for: e, o.lastButOne!, o.last!)
+            // update mean delta in D
+            D = (D + d) / 2
         }
-        // mean error of last but one layer based on mean network error and gradient for batch
-        var e = layers[layers.count - 1].train(with: G, E, alpha: alpha)
+        // mean error of last but one layer based on mean network error and delta for batch
+        var e = layers[layers.count - 1].train(with: D, E, alpha: alpha)
         // back propagate mean error and update weights layer by layer in reverse order
         for layer in (0..<layers.count - 1).reversed() {
             e = layers[layer].train(for: O[layer], O[layer + 1], e, alpha: alpha)
@@ -160,13 +161,13 @@ extension Network: CustomCoder {
 struct Layer {
     private let inputs: Int
     private let punits: Int
-    private let f: ActivationFunction
+    private let f: Activation
     private var W: Matrix<Float>
     
     init(
         numberOfInputs inputs: Int = 1,
         numberOfPUnits punits: Int = 1,
-        activationFunction f: ActivationFunction = .identity,
+        activation f: Activation = .identity,
         weights W: Matrix<Float>? = nil
     ) {
         self.inputs = inputs
@@ -192,7 +193,7 @@ struct Layer {
     }
     
     mutating func train(for I: Matrix<Float>, _ O: Matrix<Float>, _ E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
-        train(with: gradient(for: I, O, E), E, alpha: alpha)
+        train(with: delta(for: E, I, O), E, alpha: alpha)
     }
     
     mutating func train(with G: Matrix<Float>, _ E: Matrix<Float>, alpha: Float) -> Matrix<Float> {
@@ -201,7 +202,7 @@ struct Layer {
         return e
     }
     
-    func gradient(for I: Matrix<Float>, _ O: Matrix<Float>, _ E: Matrix<Float>) -> Matrix<Float> {
+    func delta(for E: Matrix<Float>, _ I: Matrix<Float>, _ O: Matrix<Float>) -> Matrix<Float> {
         E * f.apply(O, derivative: true, tryOnGpu: false) • I.T
     }
 }
@@ -228,13 +229,13 @@ extension Layer: CustomCoder {
         guard let punits = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        guard let activationFunction = Int(from: data) else { return nil }
+        guard let activation = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
-        let f = ActivationFunction(rawValue: activationFunction) ?? .identity
+        let f = Activation(rawValue: activation) ?? .identity
         
         guard let W = Matrix<Float>(from: data) else { return nil }
         
-        self.init(numberOfInputs: inputs, numberOfPUnits: punits, activationFunction: f, weights: W)
+        self.init(numberOfInputs: inputs, numberOfPUnits: punits, activation: f, weights: W)
     }
     
     var encode: Data {
@@ -246,12 +247,12 @@ extension Layer: CustomCoder {
     }
 }
 
-enum ActivationFunction: Int, CaseIterable {
+enum Activation: Int, CaseIterable {
     case identity = 1
     case sigmoid
 }
 
-extension ActivationFunction {
+extension Activation {
     var description: String {
         switch self {
         case .identity:
@@ -262,7 +263,7 @@ extension ActivationFunction {
     }
 }
 
-extension ActivationFunction {
+extension Activation {
     func apply(_ input: Matrix<Float>, derivative: Bool = false, tryOnGpu gpu: Bool = false) -> Matrix<Float> {
         let fallback = Self.applyOnCpu[self.rawValue]
         return gpu
@@ -279,7 +280,7 @@ extension ActivationFunction {
             : 1.0 / (1.0 + expf(-$0)) } }
     ]
     
-    private static func applyOnGpu(_ f: ActivationFunction, _ input: Matrix<Float>, _ derivative: Bool) -> Matrix<Float>? {
+    private static func applyOnGpu(_ f: Activation, _ input: Matrix<Float>, _ derivative: Bool) -> Matrix<Float>? {
         var result: Matrix<Float>?
         do {
             let entries = try activationKernel(f, input.entries, derivative)
@@ -350,7 +351,7 @@ struct LayerConfig: Identifiable, Hashable {
     let id = UUID()
     var inputs: Int
     var punits: Int
-    var f: ActivationFunction
+    var f: Activation
     var tryOnGpu: Bool
 }
 
@@ -370,9 +371,9 @@ extension LayerConfig: CustomCoder {
         guard let punits = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
         
-        guard let activationFunction = Int(from: data) else { return nil }
+        guard let activation = Int(from: data) else { return nil }
         data = data.advanced(by: MemoryLayout<Int>.size)
-        let f = ActivationFunction(rawValue: activationFunction) ?? .identity
+        let f = Activation(rawValue: activation) ?? .identity
         
         guard let tryOnGpu = Bool(from: data) else { return nil }
         
@@ -399,7 +400,7 @@ struct NetworkFactory: AbstractFactory {
             layers.append(Layer(
                 numberOfInputs: layer.inputs,
                 numberOfPUnits: layer.punits,
-                activationFunction: layer.f))
+                activation: layer.f))
         }
         return Network(layers, alpha: config.alpha)
     }
@@ -463,7 +464,7 @@ fileprivate extension ActivationKernelError {
     }
 }
 
-fileprivate func activationKernel(_ function: ActivationFunction, _ input: [Float], _ derivative: Bool) throws -> [Float] {
+fileprivate func activationKernel(_ function: Activation, _ input: [Float], _ derivative: Bool) throws -> [Float] {
     // var input = input
     let inputCount = input.count * MemoryLayout<Float>.size
     // var result = Array<Float>(repeating: 0, count: inputCount)
