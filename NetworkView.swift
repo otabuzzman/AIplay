@@ -4,36 +4,36 @@ import PencilKit
 struct NetworkView: View {
     @ObservedObject private var viewModel = NetworkViewModel()
     @State private var currentConfigName = "default-model"
-
+    
     @State private var longRunTask: Task<Void, Never>?
     @State private var longRunBusy = false
-
+    
     @State private var datasetReady = false
     @State private var datasetError = false
-
+    
     @State private var canvas = PKCanvasView()
     @State private var canvasInput = MNISTImage()
-
+    
     @State private var queryInput = MNISTImage()
     @State private var queryTarget: Int?
     @State private var resultReading: Int?
     @State private var resultDetails: [(Int, Float)]?
-
+    
     @State private var showResultDetails = false
-
+    
     @State private var epochsWanted = 0
-    @State private var epochsTrained = 0
+    @State private var epochsTrained = 0    
     @State private var batchesTrained = 0
     @State private var validationAccuracy: Float?
-
+    
     @State private var document: NetworkExchangeDocument?
     @State private var error: NetworkExchangeError?
-
+    
     @State private var isExporting = false
     @State private var isImporting = false
 
     @State private var showSetupView = false
-
+    
     var body: some View {
         ProgressView(value: viewModel.progress)
         LazyVStack {
@@ -157,7 +157,7 @@ struct NetworkView: View {
                 } header: {
                     HStack {
                         Label("NN TRAINING", systemImage: "dumbbell").font(.headline)
-                      Spacer()
+                        Spacer()
                         Button {
                             showSetupView.toggle()
                         } label: {
@@ -182,7 +182,7 @@ struct NetworkView: View {
                                 Label("Train next mini-batch", systemImage: "figure.strengthtraining.traditional")
                             }
                             Spacer()
-                        }
+                        } 
                         HStack {
                             Button {
                                 longRunTask = Task { @MainActor in
@@ -206,21 +206,21 @@ struct NetworkView: View {
                                         await viewModel.train()
                                         do { try Task.checkCancellation() } catch { break }
                                         clearProgress()
-
+                                        
                                         epochsTrained += 1
-
+                                        
                                         let last = viewModel.nnxd.measures.count - 1
-
+                                        
                                         let trainingAccuracy = await viewModel.query(subset: .train, count: 10000)
                                         viewModel.nnxd.measures[last].trainingAccuracy = trainingAccuracy
                                         do { try Task.checkCancellation() } catch { break }
                                         clearProgress()
-
+                                        
                                         let validationAccuracy = await viewModel.query(subset: .test)
                                         viewModel.nnxd.measures[last].validationAccuracy = validationAccuracy
                                         do { try Task.checkCancellation() } catch { break }
                                         clearProgress()
-
+                                        
                                         self.validationAccuracy = validationAccuracy
                                     }
                                     longRunBusy = false
@@ -275,7 +275,7 @@ struct NetworkView: View {
                                 currentConfigName = ""
                                 longRunTask?.cancel()
                                 let _ = await longRunTask?.value
-
+                                
                                 queryInput = []
                                 queryTarget = nil
                                 withAnimation() {
@@ -332,9 +332,9 @@ struct NetworkView: View {
                 viewModel.nnxd = nnxd
                 // update NNXD config
                 setNetworkConfig(newConfig)
-
+                
                 showSetupView.toggle()
-
+                
                 if _isDebugAssertConfiguration() {
                     let _ = print(newConfig)
                 }
@@ -354,14 +354,14 @@ extension NetworkView {
 
 struct ResultDetailsView: View {
     let details: [(Int, Float)]
-
+    
     init?(_ details: [(Int, Float)]?) {
         guard
             let details = details
         else { return nil }
         self.details = details
     }
-
+    
     var body: some View {
         VStack(spacing: 2) {
             ForEach(0..<details.count, id: \.self) { index in
@@ -378,20 +378,20 @@ struct ResultDetailsView: View {
 
 struct MSwitch<T: View, U: View>: View {
     @Environment(\.colorScheme) var colorScheme
-
+    
     let light: T
     let dark: U
-
+    
     init(light: T, dark: U) {
         self.light = light
         self.dark = dark
     }
-
+    
     init(light: () -> T, dark: () -> U) {
         self.light = light()
         self.dark = dark()
     }
-
+    
     @ViewBuilder var body: some View {
         if colorScheme == .light {
             light

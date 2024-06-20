@@ -64,7 +64,7 @@ extension PKCanvasView {
                 .transformed(using: .init(scaleX: 28 / bounds.size.width, y: 28 / bounds.size.height))
                 .image(from: .init(x: 0, y: 0, width: 28, height: 28), scale: 32)
                 .cgImage
-        else { return [] }
+        else { return MNISTImage() }
         
         var mNISTImage = MNISTImage(repeating: 0, count: 784)
         guard
@@ -74,7 +74,7 @@ extension PKCanvasView {
                 bitsPerComponent: 8, bytesPerRow: 28,
                 space: CGColorSpaceCreateDeviceGray(),
                 bitmapInfo: CGImageAlphaInfo.none.rawValue)
-        else { return [] }
+        else { return MNISTImage() }
         
         mNISTContext.draw(canvasImage, in: .init(x: 0, y: 0, width: 28, height: 28))
         
@@ -87,14 +87,16 @@ extension Image {
         guard
             mNISTImage.count == 784
         else { return nil }
-        var data = mNISTImage
         guard
             let context = CGContext(
-                data: &data,
+                data: nil,
                 width: 28, height: 28,
                 bitsPerComponent: 8, bytesPerRow: 28,
                 space: CGColorSpaceCreateDeviceGray(),
-                bitmapInfo: CGBitmapInfo.byteOrderDefault.rawValue + CGImageAlphaInfo.none.rawValue),
+                bitmapInfo: CGBitmapInfo.byteOrderDefault.rawValue + CGImageAlphaInfo.none.rawValue)
+        else { return nil }
+        context.data?.copyMemory(from: mNISTImage, byteCount: 784)
+        guard
             let cgImage = context.makeImage()
         else { return nil }
         let uiImage = UIImage(cgImage: cgImage)
