@@ -18,8 +18,8 @@ let package = Package(
             targets: ["AppModule"],
             bundleIdentifier: "com.otabuzzman.aiplay.ios",
             teamIdentifier: "28FV44657B",
-            displayVersion: "1.2.17",
-            bundleVersion: "41",
+            displayVersion: "1.2.18",
+            bundleVersion: "42",
             appIcon: .asset("AppIcon"),
             accentColor: .presetColor(.yellow),
             supportedDeviceFamilies: [

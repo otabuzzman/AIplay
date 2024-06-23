@@ -52,13 +52,13 @@ struct MNISTView: View {
                 ForEach(MNISTSubset.allCases, id: \.self) { subset in
                     switch viewModel.state[subset] {
                     case .missing, .none:
-                        Image(systemName: "multiply.circle").foregroundColor(.gray)
+                        Image(systemName: "questionmark.circle").foregroundColor(.gray)
                     case .loading:
                         Image(systemName: "clock").foregroundColor(.yellow)
                     case .loaded:
-                        Image(systemName: "info.circle").foregroundColor(.green)
+                        Image(systemName: "checkmark.circle").foregroundColor(.green)
                     case .failed(let error):
-                        Image(systemName: "checkmark.circle")
+                        Image(systemName: "multiply.circle")
                             .foregroundColor(.red)
                             .contentShape(Circle())
                             .onTapGesture {
@@ -192,7 +192,7 @@ class MNISTViewModel: ObservableObject {
     }
     
     func load(from folder: URL) async -> Void {
-        let baseURL = "http://yann.lecun.com/exdb/mnist/"
+        let baseURL = "https://raw.githubusercontent.com/fgnt/mnist/master/"
         MNISTSubset.allCases.forEach { state[$0] = .missing }
         
         await withTaskGroup(of: (MNISTSubset, MNISTState).self, returning: Void.self) { group in 
